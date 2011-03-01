@@ -8,8 +8,10 @@ if (NOT CMAKE_BUILD_TYPE)
 endif ()
 
 if (${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_BINARY_DIR})
-    file(REMOVE_RECURSE "${CMAKE_SOURCE_DIR}/CMakeCache.txt" "${CMAKE_SOURCE_DIR}/CMakeFiles")
-    message(FATAL_ERROR "In source builds are not allowed. Please run cmake from another directory")
+    message(FATAL_ERROR
+        "\nIn source builds are not allowed. Please run cmake from another directory, e.g.,\n"
+        "mkdir build; cd build; cmake ..; make\n\n"
+        "Before proceeding you should remove CMakeCache.txt and CMakeFiles/ from the source directory.")
 endif ()
 
 add_subdirectory(bwt_gen)
