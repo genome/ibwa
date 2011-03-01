@@ -439,6 +439,8 @@ int bwa_cal_pac_pos_pe(const char *prefix, bwt_t *const _bwt[2], int n_seqs, bwa
 
 	// free
 	free(tp.cnt_chg);
+	kv_destroy(aln[0]);
+	kv_destroy(aln[1]);
 	for (i = 0; i < n_seqs; ++i) {
 		kv_destroy(buf[0][i]);
 		kv_destroy(buf[1][i]);
