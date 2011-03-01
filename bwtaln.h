@@ -110,6 +110,7 @@ typedef struct {
 	int max_isize, force_isize;
 	int max_occ;
 	int n_multi, N_multi;
+	int n_threads;
 	int type, is_sw, is_preload;
 	double ap_prior;
 } pe_opt_t;
