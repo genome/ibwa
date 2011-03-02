@@ -17,7 +17,7 @@ project(bwa)
 set(CPACK_PACKAGE_VERSION 0.5.9)
 
 # use these to created a versioned copy of the bwa binary, e.g., bwa-0.5.9
-set(EXE_VERSION_SUFFIX "-${CPACK_PACKAGE_VERSION}-ta")
+set(EXE_VERSION_SUFFIX "-${CPACK_PACKAGE_VERSION}-pet1")
 set(BWA_EXECUTABLE_NAME bwa${EXE_VERSION_SUFFIX})
 
 # Compiler options and libraries ###########################################
