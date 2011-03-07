@@ -782,18 +782,22 @@ void bwa_sai2sam_pe_core(pe_inputs_t* inputs, pe_opt_t *popt)
 static pe_inputs_t *pe_inputs_parse(int argc, char *argv[])
 {
 	pe_inputs_t *inputs = calloc(1, sizeof(pe_inputs_t));
-	int i;
-	inputs->count = 0;
+	int i = 0;
 
 	if (argc < 2) {
 		fprintf(stderr, "not enough arguments!\n");
 		exit(1);
 	}
 
-	inputs->fq[0] = argv[0];
-	inputs->fq[1] = argv[1];
 
-	i = 2;
+	kv_push(const char*, inputs->prefixes, argv[i++]);
+	kv_push(const char**, inputs->sai_pair, (const char**)&argv[i]);
+	i += 2;
+
+	inputs->fq[0] = argv[i++];
+	inputs->fq[1] = argv[i++];
+
+	inputs->count=1;
 	while (i < argc)
 	{
 		if (argc - i < 3) {
@@ -862,7 +866,8 @@ int bwa_sai2sam_pe(int argc, char *argv[])
 
 	if (optind + 5 > argc) {
 		fprintf(stderr, "\n");
-		fprintf(stderr, "Usage:   bwa sampe [options] <in1.fq> <in2.fq> <prefix> <in1.sai> <in2.sai> [<prefix2> <in2,1.sai> <in2,2.sai> ...]\n\n");
+		fprintf(stderr, "Usage:   bwa sampe [options] <prefix> <in1.sai> <in2.sai> <in1.fq> <in2.fq> "
+                        "[<prefix2> <in2,1.sai> <in2,2.sai> <prefix3> ...]\n\n");
 		fprintf(stderr, "Options: -a INT   maximum insert size [%d]\n", popt->max_isize);
 		fprintf(stderr, "         -o INT   maximum occurrences for one end [%d]\n", popt->max_occ);
 		fprintf(stderr, "         -n INT   maximum hits to output for paired reads [%d]\n", popt->n_multi);
