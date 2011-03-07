@@ -14,10 +14,12 @@ cmake_minimum_required(VERSION 2.6)
 project(bwa)
 
 # Versioning ###############################################################
-set(CPACK_PACKAGE_VERSION 0.5.9)
+set(UPSTREAM_VERSION 0.5.9)
+set(INTERNAL_VERSION_FULL  0.1.0)
+set(INTERNAL_VERSION_SHORT 0.1)
 
 # use these to created a versioned copy of the bwa binary, e.g., bwa-0.5.9
-set(EXE_VERSION_SUFFIX "-${CPACK_PACKAGE_VERSION}-pem1")
+set(EXE_VERSION_SUFFIX "-${UPSTREAM_VERSION}-pem${INTERNAL_VERSION_SHORT}")
 set(BWA_EXECUTABLE_NAME bwa${EXE_VERSION_SUFFIX})
 
 # Compiler options and libraries ###########################################
@@ -64,7 +66,8 @@ add_executable(${BWA_EXECUTABLE_NAME} ${SOURCES})
 target_link_libraries(${BWA_EXECUTABLE_NAME}
     bwtgen ${MATH_LIBRARY} ${ZLIB_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
 install(TARGETS ${BWA_EXECUTABLE_NAME} DESTINATION bin/)
-install(FILES bwa.1 DESTINATION share/man/man1/)
+install(FILES bwa.1 DESTINATION share/man/man1/
+	RENAME ${BWA_EXECUTABLE_NAME}.1)
 
 
 # Packaging ################################################################
@@ -73,8 +76,9 @@ if(${CMAKE_SIZEOF_VOID_P} MATCHES 8)
     set(ARCH "x86_64")
 endif ()
 
+set(CPACK_PACKAGE_VERSION ${INTERNAL_VERSION_FULL})
+set(CPACK_PACKAGE_NAME "bwa-${UPSTREAM_VERSION}-pem${INTERNAL_VERSION_SHORT}")
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "A sequence aligner based on the BWT.")
-set(CPACK_PACKAGE_NAME "bwa${EXE_VERSION_SUFFIX}")
 set(CPACK_PACKAGE_VENDOR "Heng Li")
 #set(CPACK_PACKAGE_VERSION ${FULL_VERSION})
 set(CPACK_DEBIAN_PACKAGE_MAINTAINER "Heng Li <add@email.here>")
