@@ -34,22 +34,22 @@ bwtcache_t *bwtcache_create() {
     return c;
 }
 
-bwtcache_itm_t bwt_cached_sa(bwtcache_t *c, const bwt_t *bwt[2], const bwt_aln1_t *a, uint32_t seqlen) {
+poslist_t bwt_cached_sa(bwtcache_t *c, const bwt_t * const bwt[2], const bwt_aln1_t *a, uint32_t seqlen) {
     bwtint_t l;
     bwtcache_itm_t itm;
     uint64_t key = (uint64_t)a->k<<32 | a->l;
     itm = bwtcache_get(c, key);
     if (itm.state == eUNINITIALIZED) {
-        itm.n = a->l - a->k + 1;
-        itm.a = (bwtint_t*)malloc(sizeof(bwtint_t) * itm.n);
+        itm.pos.n = a->l - a->k + 1;
+        itm.pos.a = (bwtint_t*)malloc(sizeof(bwtint_t) * itm.pos.n);
         for (l = a->k; l <= a->l; ++l)
-            itm.a[l - a->k] = a->a? bwt_sa(bwt[0], l) : bwt[1]->seq_len - (bwt_sa(bwt[1], l) + seqlen);
+            itm.pos.a[l - a->k] = a->a? bwt_sa(bwt[0], l) : bwt[1]->seq_len - (bwt_sa(bwt[1], l) + seqlen);
         bwtcache_put(c, key, &itm);
     } else if (itm.state == eLOADING) {
-        return bwtcache_wait(c, key);
+        return bwtcache_wait(c, key).pos;
     }
 
-    return itm; 
+    return itm.pos;
 } 
 
 void bwtcache_destroy(bwtcache_t *c) {
@@ -63,7 +63,7 @@ void bwtcache_destroy(bwtcache_t *c) {
 
     fprintf(stderr, "[%s] %lu cache waits encountered\n", __func__, c->cache_waits);
 	for (iter = kh_begin(c->hash); iter != kh_end(c->hash); ++iter)
-		if (kh_exist(c->hash, iter)) free(kh_val(c->hash, iter).a);
+		if (kh_exist(c->hash, iter)) free(kh_val(c->hash, iter).pos.a);
 	kh_destroy(64, c->hash);
     free(c);
 }
@@ -103,7 +103,7 @@ void bwtcache_put(bwtcache_t *c, uint64_t key, bwtcache_itm_t *value) {
     iter = kh_put(64, c->hash, key, &ret);
     item = &kh_val(c->hash, iter);
     if (item->state == eINITIALIZED) {
-        free(value->a);
+        free(value->pos.a);
     } else {
         psafe(pthread_mutex_lock(&c->cond_mtx), "failed to lock mutex");
         *item = *value;

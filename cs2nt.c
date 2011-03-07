@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include "bwtaln.h"
 #include "stdaln.h"
+#include "dbset.h"
 
 /*
   Here is a delicate example. ref_nt=ATTAAC(RBRBG), read_cs=RBBOG. If we
@@ -109,7 +110,7 @@ uint8_t *cs2nt_nt_qual(int size, const uint8_t *nt_read, const uint8_t *cs_read,
 }
 
 // this function will be called when p->seq has been reversed by refine_gapped()
-void bwa_cs2nt_core(bwa_seq_t *p, bwtint_t l_pac, ubyte_t *pac)
+void bwa_cs2nt_core(bwa_seq_t *p, dbset_t *dbs)
 {
 	uint8_t *ta, *nt_read, *btarray, *tarray, *nt_ref, *cs_read, *new_nt_read;
 	int i, len;
@@ -134,12 +135,16 @@ void bwa_cs2nt_core(bwa_seq_t *p, bwtint_t l_pac, ubyte_t *pac)
 
 	// generate len, nt_ref[] and cs_read
 	seq = p->strand? p->rseq : p->seq;
-	nt_ref[0] = p->pos? bns_pac(pac, p->pos-1) : 4;
+	if (p->pos) {
+		dbset_extract_sequence(dbs, dbs->ntbns, nt_ref, p->pos-1, 1);
+	} else {
+		nt_ref[0] = 4;
+	}
 	if (p->cigar == 0) { // no gap or clipping
 		len = p->len;
+		dbset_extract_sequence(dbs, dbs->ntbns, nt_ref+1, p->pos, p->len);
 		for (i = 0; i < p->len; ++i) {
 			__gen_csbase(cs_read[i], i, seq);
-			nt_ref[i+1] = bns_pac(pac, p->pos + i);
 		}
 	} else {
 		int k, z;
@@ -148,9 +153,9 @@ void bwa_cs2nt_core(bwa_seq_t *p, bwtint_t l_pac, ubyte_t *pac)
 		for (k = z = 0; k < p->n_cigar; ++k) {
 			int l = __cigar_len(p->cigar[k]);
 			if (__cigar_op(p->cigar[k]) == FROM_M) {
+				dbset_extract_sequence(dbs, dbs->ntbns, nt_ref+z+1, x, l);
 				for (i = 0; i < l; ++i, ++x, ++y) {
 					__gen_csbase(cs_read[z], y, seq);
-					nt_ref[z+1] = bns_pac(pac, x);
 					++z;
 				}
 			} else if (__cigar_op(p->cigar[k]) == FROM_I) {

@@ -3,6 +3,7 @@
 
 #include "bwt.h"
 #include "bwtaln.h"
+#include "kvec.h"
 
 #include <stdint.h>
 
@@ -15,16 +16,20 @@ typedef enum {
 } cache_item_state_t;
 
 typedef struct {
-    cache_item_state_t state;
-	int n;
+	uint32_t n;
 	bwtint_t *a;
+} poslist_t;
+
+typedef struct {
+    cache_item_state_t state;
+	poslist_t pos;
 } bwtcache_itm_t;
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-    bwtcache_itm_t bwt_cached_sa(bwtcache_t *c, const bwt_t *bwt[2], const bwt_aln1_t *a, uint32_t seqlen);
+    poslist_t bwt_cached_sa(bwtcache_t *c, const bwt_t *const bwt[2], const bwt_aln1_t *a, uint32_t seqlen);
 
     bwtcache_t *bwtcache_create();
     void bwtcache_destroy(bwtcache_t *c);

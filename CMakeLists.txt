@@ -17,7 +17,7 @@ project(bwa)
 set(CPACK_PACKAGE_VERSION 0.5.9)
 
 # use these to created a versioned copy of the bwa binary, e.g., bwa-0.5.9
-set(EXE_VERSION_SUFFIX "-${CPACK_PACKAGE_VERSION}-pet1")
+set(EXE_VERSION_SUFFIX "-${CPACK_PACKAGE_VERSION}-pem1")
 set(BWA_EXECUTABLE_NAME bwa${EXE_VERSION_SUFFIX})
 
 # Compiler options and libraries ###########################################
@@ -34,7 +34,7 @@ if (${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_BINARY_DIR})
 endif ()
 
 if (CMAKE_COMPILER_IS_GNUCC)
-    set(CMAKE_C_FLAGS "-Wall")
+    set(CMAKE_C_FLAGS "-Wall -Wno-unused-result")
 endif ()
 
 find_package(ZLIB REQUIRED)
@@ -57,6 +57,7 @@ set(SOURCES
     bwtsw2_chain.c bwtsw2_core.c bwtsw2_main.c cs2nt.c is.c
     khash.h kseq.h ksort.h kstring.c kstring.h kvec.h
     simple_dp.c stdaln.c stdaln.h threadblock.c threadblock.h utils.c utils.h
+    dbset.c dbset.h saiset.c saiset.h
     main.c main.h
 )
 add_executable(${BWA_EXECUTABLE_NAME} ${SOURCES})
