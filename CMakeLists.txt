@@ -34,7 +34,7 @@ if (${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_BINARY_DIR})
 endif ()
 
 if (CMAKE_COMPILER_IS_GNUCC)
-    set(CMAKE_C_FLAGS "-Wall -Wno-unused-result")
+    set(CMAKE_C_FLAGS "-Wall")
 endif ()
 
 find_package(ZLIB REQUIRED)
