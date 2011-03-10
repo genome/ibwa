@@ -228,7 +228,7 @@ poslist_t bwtdb_cached_sa2seq(const bwtdb_t *db, const bwt_aln1_t* aln, uint32_t
 uint32_t dbset_extract_sequence(const dbset_t *dbs, seq_t **seqs, ubyte_t* ref_seq, uint64_t beg, uint32_t len) {
 	uint32_t total = 0;
 	while (total < len) {
-		int idx;
+		int64_t idx;
 		seq_t *s; 
 		bwtdb_t *db;
 		if (beg > dbs->l_pac) break;
