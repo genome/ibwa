@@ -867,7 +867,7 @@ int bwa_sai2sam_pe(int argc, char *argv[])
 	if (optind + 5 > argc) {
 		fprintf(stderr, "\n");
 		fprintf(stderr, "Usage:   bwa sampe [options] <prefix> <in1.sai> <in2.sai> <in1.fq> <in2.fq> "
-                        "[<prefix2> <in2,1.sai> <in2,2.sai> <prefix3> ...]\n\n");
+		                "[<prefix2> <in2,1.sai> <in2,2.sai> <prefix3> ...]\n\n");
 		fprintf(stderr, "Options: -a INT   maximum insert size [%d]\n", popt->max_isize);
 		fprintf(stderr, "         -o INT   maximum occurrences for one end [%d]\n", popt->max_occ);
 		fprintf(stderr, "         -n INT   maximum hits to output for paired reads [%d]\n", popt->n_multi);
