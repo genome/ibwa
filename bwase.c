@@ -175,16 +175,16 @@ static bwa_cigar_t *refine_gapped_core(dbset_t *dbs, seq_t **bns, int len, const
 	int64_t ref_start;
 
 	ref_len = len + abs(ext);
-    if (ext > 0) {
-        ref_start = __pos;
-    } else {
-        int64_t x = __pos + (is_end_correct? len : ref_len);
-        ref_start = x - ref_len > 0 ? x - ref_len : 0;
-        ref_len = x - ref_start;
-    }
+	if (ext > 0) {
+		ref_start = __pos;
+	} else {
+		int64_t x = __pos + (is_end_correct? len : ref_len);
+		ref_start = x - ref_len > 0 ? x - ref_len : 0;
+		ref_len = x - ref_start;
+	}
 
-    ref_seq = (ubyte_t*)calloc(ref_len, 1);
-    l = dbset_extract_sequence(dbs, bns, ref_seq, ref_start, ref_len); 
+	ref_seq = (ubyte_t*)calloc(ref_len, 1);
+	l = dbset_extract_sequence(dbs, bns, ref_seq, ref_start, ref_len); 
 	path = (path_t*)calloc(l+len, sizeof(path_t));
 
 	aln_global_core(ref_seq, l, (ubyte_t*)seq, len, &ap, path, &path_len);
@@ -237,8 +237,8 @@ char *bwa_cal_md1(int n_cigar, bwa_cigar_t *cigar, int len, bwtint_t pos, ubyte_
 					} else ++u;
 				}
 				x += l; y += l;
-/*		        } else if (cigar[k]>>14 == FROM_I || cigar[k]>>14 == 3) { */
-                        } else if (__cigar_op(cigar[k]) == FROM_I || __cigar_op(cigar[k]) == FROM_S) {
+/*				} else if (cigar[k]>>14 == FROM_I || cigar[k]>>14 == 3) { */
+						} else if (__cigar_op(cigar[k]) == FROM_I || __cigar_op(cigar[k]) == FROM_S) {
 				y += l;
 				if (__cigar_op(cigar[k]) == FROM_I) nm += l;
 			} else if (__cigar_op(cigar[k]) == FROM_D) {
@@ -337,7 +337,6 @@ void bwa_refine_gapped(dbset_t *dbs, int n_seqs, bwa_seq_t *seqs)
 				int n_cigar;
 				if (q->gap == 0) continue;
 				free(q->cigar);
-/* REFINE GAPPED CORE NEEDS TO BE ABLE TO DIFFERENTIATE BETWEEN COLOR SPACE AND NOT */
 				q->cigar = refine_gapped_core(dbs, dbs->ntbns, s->len, q->strand? s->rseq : s->seq, &q->pos,
 											  (q->strand? 1 : -1) * q->gap, &n_cigar, 0);
 				q->n_cigar = n_cigar;
@@ -408,130 +407,9 @@ static int64_t pos_5(const bwa_seq_t *p)
 
 void bwa_print_sam1(const dbset_t *dbs, bwa_seq_t *p, const bwa_seq_t *mate, int mode, int max_top2)
 {
-    const bntseq_t* bns;
-    int j;
-    uint64_t bnsoffset = 0;
-    if (p->type != BWA_TYPE_NO_MATCH || (mate && mate->type != BWA_TYPE_NO_MATCH)) {
-        int seqid, nn, am = 0, flag = p->extra_flag;
-        char XT;
-
-        if (p->type == BWA_TYPE_NO_MATCH) {
-            p->pos = mate->pos;
-            p->strand = mate->strand;
-            flag |= SAM_FSU;
-            j = 1;
-        } else j = pos_end(p) - p->pos; // j is the length of the reference in the alignment
-
-        // get seqid
-        nn = dbset_coor_pac2real(dbs, p->pos, j, &seqid, &bns, &bnsoffset);
-        if (p->type != BWA_TYPE_NO_MATCH &&
-            p->pos + j - (bns->anns[seqid].offset + bnsoffset) > bns->anns[seqid].len)
-        {
-            flag |= SAM_FSU; // flag UNMAP as this alignment bridges two adjacent reference sequences
-        }
-
-        // update flag and print it
-        if (p->strand) flag |= SAM_FSR;
-        if (mate) {
-            if (mate->type != BWA_TYPE_NO_MATCH) {
-                if (mate->strand) flag |= SAM_FMR;
-            } else flag |= SAM_FMU;
-        }
-        printf("%s\t%d\t%s\t", p->name, flag, bns->anns[seqid].name);
-        printf("%d\t%d\t", (int)(p->pos - (bns->anns[seqid].offset+bnsoffset) + 1), p->mapQ);
-
-        // print CIGAR
-        if (p->cigar) {
-            for (j = 0; j != p->n_cigar; ++j)
-                printf("%d%c", __cigar_len(p->cigar[j]), "MIDS"[__cigar_op(p->cigar[j])]);
-        } else if (p->type == BWA_TYPE_NO_MATCH) printf("*");
-        else printf("%dM", p->len);
-
-        // print mate coordinate
-        if (mate && mate->type != BWA_TYPE_NO_MATCH) {
-            int m_seqid, m_is_N;
-            uint64_t m_bnsoffset;
-            long long isize;
-            int mate_on_same_seq;
-            am = mate->seQ < p->seQ? mate->seQ : p->seQ; // smaller single-end mapping quality
-            // redundant calculation here, but should not matter too much
-            m_is_N = dbset_coor_pac2real(dbs, mate->pos, mate->len, &m_seqid, &bns, &m_bnsoffset);
-            mate_on_same_seq = (seqid == m_seqid && bnsoffset == m_bnsoffset);
-            printf("\t%s\t", mate_on_same_seq ? "=" : bns->anns[m_seqid].name);
-            isize = mate_on_same_seq ? pos_5(mate) - pos_5(p) : 0;
-            if (p->type == BWA_TYPE_NO_MATCH) isize = 0;
-            printf("%d\t%lld\t", (int)(mate->pos - (bns->anns[m_seqid].offset + m_bnsoffset) + 1), isize);
-        } else if (mate) printf("\t=\t%d\t0\t", (int)(p->pos - (bns->anns[seqid].offset + bnsoffset) + 1));
-        else printf("\t*\t0\t0\t");
-
-        // print sequence and quality
-        if (p->strand == 0)
-            for (j = 0; j != p->full_len; ++j) putchar("ACGTN"[(int)p->seq[j]]);
-        else for (j = 0; j != p->full_len; ++j) putchar("TGCAN"[p->seq[p->full_len - 1 - j]]);
-        putchar('\t');
-        if (p->qual) {
-            if (p->strand) seq_reverse(p->len, p->qual, 0); // reverse quality
-            printf("%s", p->qual);
-        } else printf("*");
-
-        if (bwa_rg_id) printf("\tRG:Z:%s", bwa_rg_id);
-        if (p->bc[0]) printf("\tBC:Z:%s", p->bc);
-        if (p->clip_len < p->full_len) printf("\tXC:i:%d", p->clip_len);
-        if (p->type != BWA_TYPE_NO_MATCH) {
-            int i;
-            // calculate XT tag
-            XT = "NURM"[p->type];
-            if (nn > 10) XT = 'N';
-            // print tags
-            printf("\tXT:A:%c\t%s:i:%d", XT, (mode & BWA_MODE_COMPREAD)? "NM" : "CM", p->nm);
-            if (nn) printf("\tXN:i:%d", nn);
-            if (mate) printf("\tSM:i:%d\tAM:i:%d", p->seQ, am);
-            if (p->type != BWA_TYPE_MATESW) { // X0 and X1 are not available for this type of alignment
-                printf("\tX0:i:%d", p->c1);
-                if (p->c1 <= max_top2) printf("\tX1:i:%d", p->c2);
-            }
-            printf("\tXM:i:%d\tXO:i:%d\tXG:i:%d", p->n_mm, p->n_gapo, p->n_gapo+p->n_gape);
-            if (p->md) printf("\tMD:Z:%s", p->md);
-            // print multiple hits
-            if (p->n_multi) {
-                printf("\tXA:Z:");
-                for (i = 0; i < p->n_multi; ++i) {
-                    bwt_multi1_t *q = p->multi + i;
-                    int k;
-                    j = pos_end_multi(q, p->len) - q->pos;
-                    nn = dbset_coor_pac2real(dbs, q->pos, j, &seqid, &bns, &bnsoffset);
-                    printf("%s,%c%d,", bns->anns[seqid].name, q->strand? '-' : '+',
-                           (int)(q->pos - (bns->anns[seqid].offset + bnsoffset) + 1));
-                    if (q->cigar) {
-                        for (k = 0; k < q->n_cigar; ++k)
-                            printf("%d%c", __cigar_len(q->cigar[k]), "MIDS"[__cigar_op(q->cigar[k])]);
-                    } else printf("%dM", p->len);
-                    printf(",%d;", q->gap + q->mm);
-                }
-            }
-        }
-        putchar('\n');
-    } else { // this read has no match
-        ubyte_t *s = p->strand? p->rseq : p->seq;
-        int flag = p->extra_flag | SAM_FSU;
-        if (mate && mate->type == BWA_TYPE_NO_MATCH) flag |= SAM_FMU;
-        printf("%s\t%d\t*\t0\t0\t*\t*\t0\t0\t", p->name, flag);
-        for (j = 0; j != p->len; ++j) putchar("ACGTN"[(int)s[j]]);
-        putchar('\t');
-        if (p->qual) {
-            if (p->strand) seq_reverse(p->len, p->qual, 0); // reverse quality
-            printf("%s", p->qual);
-        } else printf("*");
-        if (bwa_rg_id) printf("\tRG:Z:%s", bwa_rg_id);
-        if (p->bc[0]) printf("\tBC:Z:%s", p->bc);
-        if (p->clip_len < p->full_len) printf("\tXC:i:%d", p->clip_len);
-        putchar('\n');
-    }
-}
-
-void Xbwa_print_sam1(const bntseq_t *bns, bwa_seq_t *p, const bwa_seq_t *mate, int mode, int max_top2)
-{
+	const bntseq_t* bns;
 	int j;
+	uint64_t bnsoffset = 0;
 	if (p->type != BWA_TYPE_NO_MATCH || (mate && mate->type != BWA_TYPE_NO_MATCH)) {
 		int seqid, nn, am = 0, flag = p->extra_flag;
 		char XT;
@@ -544,9 +422,12 @@ void Xbwa_print_sam1(const bntseq_t *bns, bwa_seq_t *p, const bwa_seq_t *mate, i
 		} else j = pos_end(p) - p->pos; // j is the length of the reference in the alignment
 
 		// get seqid
-		nn = bns_coor_pac2real(bns, p->pos, j, &seqid);
-		if (p->type != BWA_TYPE_NO_MATCH && p->pos + j - bns->anns[seqid].offset > bns->anns[seqid].len)
+		nn = dbset_coor_pac2real(dbs, p->pos, j, &seqid, &bns, &bnsoffset);
+		if (p->type != BWA_TYPE_NO_MATCH &&
+			p->pos + j - (bns->anns[seqid].offset + bnsoffset) > bns->anns[seqid].len)
+		{
 			flag |= SAM_FSU; // flag UNMAP as this alignment bridges two adjacent reference sequences
+		}
 
 		// update flag and print it
 		if (p->strand) flag |= SAM_FSR;
@@ -556,7 +437,7 @@ void Xbwa_print_sam1(const bntseq_t *bns, bwa_seq_t *p, const bwa_seq_t *mate, i
 			} else flag |= SAM_FMU;
 		}
 		printf("%s\t%d\t%s\t", p->name, flag, bns->anns[seqid].name);
-		printf("%d\t%d\t", (int)(p->pos - bns->anns[seqid].offset + 1), p->mapQ);
+		printf("%d\t%d\t", (int)(p->pos - (bns->anns[seqid].offset+bnsoffset) + 1), p->mapQ);
 
 		// print CIGAR
 		if (p->cigar) {
@@ -568,15 +449,18 @@ void Xbwa_print_sam1(const bntseq_t *bns, bwa_seq_t *p, const bwa_seq_t *mate, i
 		// print mate coordinate
 		if (mate && mate->type != BWA_TYPE_NO_MATCH) {
 			int m_seqid, m_is_N;
+			uint64_t m_bnsoffset;
 			long long isize;
+			int mate_on_same_seq;
 			am = mate->seQ < p->seQ? mate->seQ : p->seQ; // smaller single-end mapping quality
 			// redundant calculation here, but should not matter too much
-			m_is_N = bns_coor_pac2real(bns, mate->pos, mate->len, &m_seqid);
-			printf("\t%s\t", (seqid == m_seqid)? "=" : bns->anns[m_seqid].name);
-			isize = (seqid == m_seqid)? pos_5(mate) - pos_5(p) : 0;
+			m_is_N = dbset_coor_pac2real(dbs, mate->pos, mate->len, &m_seqid, &bns, &m_bnsoffset);
+			mate_on_same_seq = (seqid == m_seqid && bnsoffset == m_bnsoffset);
+			printf("\t%s\t", mate_on_same_seq ? "=" : bns->anns[m_seqid].name);
+			isize = mate_on_same_seq ? pos_5(mate) - pos_5(p) : 0;
 			if (p->type == BWA_TYPE_NO_MATCH) isize = 0;
-			printf("%d\t%lld\t", (int)(mate->pos - bns->anns[m_seqid].offset + 1), isize);
-		} else if (mate) printf("\t=\t%d\t0\t", (int)(p->pos - bns->anns[seqid].offset + 1));
+			printf("%d\t%lld\t", (int)(mate->pos - (bns->anns[m_seqid].offset + m_bnsoffset) + 1), isize);
+		} else if (mate) printf("\t=\t%d\t0\t", (int)(p->pos - (bns->anns[seqid].offset + bnsoffset) + 1));
 		else printf("\t*\t0\t0\t");
 
 		// print sequence and quality
@@ -614,9 +498,9 @@ void Xbwa_print_sam1(const bntseq_t *bns, bwa_seq_t *p, const bwa_seq_t *mate, i
 					bwt_multi1_t *q = p->multi + i;
 					int k;
 					j = pos_end_multi(q, p->len) - q->pos;
-					nn = bns_coor_pac2real(bns, q->pos, j, &seqid);
+					nn = dbset_coor_pac2real(dbs, q->pos, j, &seqid, &bns, &bnsoffset);
 					printf("%s,%c%d,", bns->anns[seqid].name, q->strand? '-' : '+',
-						   (int)(q->pos - bns->anns[seqid].offset + 1));
+						   (int)(q->pos - (bns->anns[seqid].offset + bnsoffset) + 1));
 					if (q->cigar) {
 						for (k = 0; k < q->n_cigar; ++k)
 							printf("%d%c", __cigar_len(q->cigar[k]), "MIDS"[__cigar_op(q->cigar[k])]);

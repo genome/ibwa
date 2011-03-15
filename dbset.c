@@ -130,7 +130,6 @@ dbset_t *dbset_restore(int count, const char **prefixes, int mode, int preload) 
 		if (dbs->color_space) {
 			dbs->ntbns[i] = seq_restore(prefixes[i], ".nt");
 			dbs->color_space = 1;
-			dbs->db[i]->ntbns = bwa_open_nt(prefixes[i]); /* color space */
 		} else if (preload) {
 			seq_load_pac(dbs->bns[i]);
 			bwtdb_load_sa(dbs->db[i], 0);
@@ -204,7 +203,7 @@ void dbset_unload_ntpac(dbset_t *dbs) {
 		seq_unload_pac(dbs->ntbns[i]);
 }
 
-bwtint_t bwtdb_sa2seq(const bwtdb_t *db, int strand, uint32_t sa, uint32_t seq_len) {
+uint64_t bwtdb_sa2seq(const bwtdb_t *db, int strand, uint32_t sa, uint32_t seq_len) {
 	if (strand) {
 		return db->offset + bwt_sa(db->bwt[0], sa);
 	} else {

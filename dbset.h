@@ -18,10 +18,6 @@ typedef struct {
     bwt_t *bwt[2]; 
     bwtcache_t *bwtcache;
     uint64_t offset;
-
-    /* used only for color-space */
-    bntseq_t *ntbns;
-    ubyte_t *ntseq;
 } bwtdb_t;
 
 typedef struct {
@@ -56,7 +52,7 @@ extern "C" {
     int dbset_coor_pac2real(const dbset_t *dbs, int64_t pac_coor, int len, int32_t *real_seq, 
                             const bntseq_t **bns, uint64_t *offset);
 
-    bwtint_t bwtdb_sa2seq(const bwtdb_t *db, int strand, uint32_t sa, uint32_t seq_len);
+    uint64_t bwtdb_sa2seq(const bwtdb_t *db, int strand, uint32_t sa, uint32_t seq_len);
     poslist_t bwtdb_cached_sa2seq(const bwtdb_t *db, const bwt_aln1_t* aln, uint32_t seq_len);
 
     void dbset_print_sam_SQ(const dbset_t *dbs);

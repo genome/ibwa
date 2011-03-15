@@ -539,10 +539,7 @@ static void bwa_paired_sw_thread(uint32_t idx, uint32_t size, void* data)
 	bwa_paired_sw_out_t *out = &d->out[idx];
 	int i;
 
-	dbset_load_pac(dbs);
-
 	// perform mate alignment
-	/* TODO: make out->n_mapped|tot thread safe! */
 	out->n_tot[0] = out->n_tot[1] = out->n_mapped[0] = out->n_mapped[1] = 0;
 	for (i = idx; i < n_seqs; i += size) {
 		bwa_seq_t *p[2];
@@ -660,7 +657,6 @@ static void bwa_paired_sw_thread(uint32_t idx, uint32_t size, void* data)
 			free(cigar[0]); free(cigar[1]);
 		}
 	}
-	dbset_unload_pac(dbs);
 }
 
 void bwa_paired_sw(dbset_t *dbs, int n_seqs, bwa_seq_t *seqs[2], const pe_opt_t *popt, const isize_info_t *ii)
@@ -670,29 +666,33 @@ void bwa_paired_sw(dbset_t *dbs, int n_seqs, bwa_seq_t *seqs[2], const pe_opt_t 
 	uint64_t n_mapped[2] = {0,0};
 	bwa_paired_sw_data_t td;
 
-	if (!popt->is_sw || ii->avg < 0.0) return;
+	dbset_load_pac(dbs);
 
-	td.dbs = dbs;
-	td.n_seqs = n_seqs;
-	td.seqs[0] = seqs[0];
-	td.seqs[1] = seqs[1];
-	td.popt = popt;
-	td.ii = ii;
-	td.out = calloc(popt->n_threads, sizeof(bwa_paired_sw_out_t));
-	threadblock_exec(popt->n_threads, &bwa_paired_sw_thread, &td);
+	if (popt->is_sw && ii->avg >= 0.0) {
+        td.dbs = dbs;
+        td.n_seqs = n_seqs;
+        td.seqs[0] = seqs[0];
+        td.seqs[1] = seqs[1];
+        td.popt = popt;
+        td.ii = ii;
+        td.out = calloc(popt->n_threads, sizeof(bwa_paired_sw_out_t));
+        threadblock_exec(popt->n_threads, &bwa_paired_sw_thread, &td);
 
-	for (i = 0; i < popt->n_threads; ++i) {
-		n_tot[0] += td.out[i].n_tot[0];
-		n_tot[1] += td.out[i].n_tot[1];
-		n_mapped[0] += td.out[i].n_mapped[0];
-		n_mapped[1] += td.out[i].n_mapped[1];
-	}
-	free(td.out);
+        for (i = 0; i < popt->n_threads; ++i) {
+            n_tot[0] += td.out[i].n_tot[0];
+            n_tot[1] += td.out[i].n_tot[1];
+            n_mapped[0] += td.out[i].n_mapped[0];
+            n_mapped[1] += td.out[i].n_mapped[1];
+        }
+        free(td.out);
 
-	fprintf(stderr, "[bwa_paired_sw] %lld out of %lld Q%d singletons are mated.\n",
-			(long long)n_mapped[1], (long long)n_tot[1], SW_MIN_MAPQ);
-	fprintf(stderr, "[bwa_paired_sw] %lld out of %lld Q%d discordant pairs are fixed.\n",
-			(long long)n_mapped[0], (long long)n_tot[0], SW_MIN_MAPQ);
+        fprintf(stderr, "[bwa_paired_sw] %lld out of %lld Q%d singletons are mated.\n",
+                (long long)n_mapped[1], (long long)n_tot[1], SW_MIN_MAPQ);
+        fprintf(stderr, "[bwa_paired_sw] %lld out of %lld Q%d discordant pairs are fixed.\n",
+                (long long)n_mapped[0], (long long)n_tot[0], SW_MIN_MAPQ);
+    }
+
+	dbset_unload_pac(dbs);
 }
 
 //void bwa_sai2sam_pe_core(const char *prefix, char *const fn_sa[2], char *const fn_fa[2], pe_opt_t *popt)
@@ -748,6 +748,7 @@ void bwa_sai2sam_pe_core(pe_inputs_t* inputs, pe_opt_t *popt)
 		fprintf(stderr, "[bwa_sai2sam_pe_core] refine gapped alignments... ");
 		for (j = 0; j < 2; ++j)
 			bwa_refine_gapped(dbs, n_seqs, seqs[j]);
+
 		fprintf(stderr, "%.2f sec\n", (float)(clock() - t) / CLOCKS_PER_SEC); t = clock();
 
 		fprintf(stderr, "[bwa_sai2sam_pe_core] print alignments... ");
