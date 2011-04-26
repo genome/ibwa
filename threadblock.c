@@ -33,16 +33,19 @@ void threadblock_exec(uint32_t size, threadblockfn_t func, void *data)
         tb[i].func = func;
 
 #ifdef HAVE_PTHREAD
-        if (pthread_create(&tb[i].tid, NULL, __threadblock_dispatch, tb+i) != 0)
-            err_fatal_simple("thread creation failed.");
-#else /* HAVE_PTHREAD */
-        __threadblock_dispatch(tb+i); /* dispatch inline */
+        if (size > 1) {
+            if (pthread_create(&tb[i].tid, NULL, __threadblock_dispatch, tb+i) != 0)
+                err_fatal_simple("thread creation failed.");
+        } else
 #endif /* HAVE_PTHREAD */
+            __threadblock_dispatch(tb+i); /* dispatch inline */
     }
 
 #ifdef HAVE_PTHREAD
-    for (i = 0; i < size; ++i)
-        pthread_join(tb[i].tid, NULL);
+    if (size > 1) {
+        for (i = 0; i < size; ++i)
+            pthread_join(tb[i].tid, NULL);
+    }
 #endif /* HAVE_PTHREAD */
     free(tb);
 }
