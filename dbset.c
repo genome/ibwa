@@ -91,14 +91,14 @@ static void seq_load_pac(seq_t *s) {
 }
 
 static void seq_unload_pac(seq_t *s) {
-    if (s->data)
-        free(s->data);
+    if (s->data) free(s->data);
     s->data = NULL;
 }
 
 static void seq_destroy(seq_t *s) {
     if (!s) return;
     seq_unload_pac(s);
+    if (s->bns) bns_destroy(s->bns);
     free(s);
 }
 
