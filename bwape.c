@@ -412,7 +412,7 @@ int bwa_cal_pac_pos_pe(dbset_t *dbs, int n_seqs, bwa_seq_t *seqs[2], saiset_t *s
 	// PE
 	for (i = 0; i < 2; ++i) {
 		tp.dbs = dbs;
-		tp.buf[i] = aln_buf[i];
+		tp.buf[i] = (const alngrp_t**)aln_buf[i];
 		tp.seqs[i] = seqs[i];
 	}
 	tp.n_seqs = n_seqs;
