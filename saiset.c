@@ -16,10 +16,10 @@ saiset_t *saiset_create(int n, const char **files[]) {
     int i, j;
     saiset_t *s = calloc(1, sizeof(saiset_t));
     s->count = n;
-	s->fp[0] = calloc(n, sizeof(FILE*));
-	s->fp[1] = calloc(n, sizeof(FILE*));
+    s->fp[0] = calloc(n, sizeof(FILE*));
+    s->fp[1] = calloc(n, sizeof(FILE*));
 
-	for (i = 0; i < 2; ++i) {
+    for (i = 0; i < 2; ++i) {
         for (j = 0; j < n; ++j) {
             if (!(s->fp[i][j] = xopen(files[j][i], "r"))) {
                 fprintf(stderr, "[saiset_create] failed to open sai file %s\n", files[j][i]);
@@ -27,15 +27,18 @@ saiset_t *saiset_create(int n, const char **files[]) {
             /* TODO: verify opt records match! */
             fread(&s->opt[i], sizeof(gap_opt_t), 1, s->fp[i][j]);
         }
-	}
+    }
     return s;
 }
 
 void saiset_destroy(saiset_t *s) {
     int i, j;
-	for (i = 0; i < 2; ++i)
-        for (j = 0; j < s->count; ++j)
+    for (i = 0; i < 2; ++i) {
+        for (j = 0; j < s->count; ++j) {
             fclose(s->fp[i][j]);
+        }
+        free(s->fp[i]);
+    }
     free(s);
 }
 

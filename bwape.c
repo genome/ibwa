@@ -32,7 +32,7 @@ typedef kvec_t(bwt_aln1_t) aln_buf_t;
 
 typedef struct {
 	dbset_t *dbs;
-	const alngrp_t *buf[2];
+	const alngrp_t **buf[2];
 	int n_seqs;
 	bwa_seq_t *seqs[2];
 	isize_info_t *ii;
@@ -301,7 +301,7 @@ static int pairing(bwa_seq_t *p[2], const pos_arr_t *arr, const alngrp_t aln[2],
 static void bwa_cal_pac_pos_pe_thread(uint32_t idx, uint32_t size, void *data)
 {
 	cal_pac_pos_params_t const *tdata = (cal_pac_pos_params_t*)data;
-	const alngrp_t *buf[2] = {tdata->buf[0], tdata->buf[1]};
+	const alngrp_t **buf[2] = {tdata->buf[0], tdata->buf[1]};
 	int n_seqs = tdata->n_seqs;
 	bwa_seq_t *seqs[2] = {tdata->seqs[0], tdata->seqs[1]};
 	isize_info_t *ii = tdata->ii;
@@ -317,7 +317,7 @@ static void bwa_cal_pac_pos_pe_thread(uint32_t idx, uint32_t size, void *data)
 		bwa_seq_t *p[2];
 		for (j = 0; j < 2; ++j) {
 			p[j] = seqs[j] + i;
-			aln[j] = buf[j][i];
+			aln[j] = *buf[j][i];
 		}
 		if ((p[0]->type == BWA_TYPE_UNIQUE || p[0]->type == BWA_TYPE_REPEAT)
 			&& (p[1]->type == BWA_TYPE_UNIQUE || p[1]->type == BWA_TYPE_REPEAT))
@@ -373,12 +373,11 @@ int bwa_cal_pac_pos_pe(dbset_t *dbs, int n_seqs, bwa_seq_t *seqs[2], saiset_t *s
 					   const pe_opt_t *opt, const gap_opt_t *gopt, const isize_info_t *last_ii)
 {
 	int i, j, cnt_chg = 0;
-	alngrp_t *aln[2];
-	alngrp_t *buf[2];
+	alngrp_t **aln_buf[2];
 	cal_pac_pos_params_t tp;
 
-	buf[0] = (alngrp_t*)calloc(n_seqs, sizeof(alngrp_t));
-	buf[1] = (alngrp_t*)calloc(n_seqs, sizeof(alngrp_t));
+	aln_buf[0] = (alngrp_t**)calloc(n_seqs, sizeof(alngrp_t*));
+	aln_buf[1] = (alngrp_t**)calloc(n_seqs, sizeof(alngrp_t*));
 
 	// SE
 	for (i = 0; i != n_seqs; ++i) {
@@ -388,14 +387,13 @@ int bwa_cal_pac_pos_pe(dbset_t *dbs, int n_seqs, bwa_seq_t *seqs[2], saiset_t *s
 			p[j] = seqs[j] + i;
 			p[j]->n_multi = 0;
 			p[j]->extra_flag |= SAM_FPD | (j == 0? SAM_FR1 : SAM_FR2);
-			aln[j] = alngrp_create(dbs, saiset, j);
-			kv_copy(alignment_t, buf[j][i], *aln[j]); // backup aln[j]
+			aln_buf[j][i] = alngrp_create(dbs, saiset, j);
 
 			// generate SE alignment and mapping quality
-			select_sai(aln[j], p[j], &main_idx);
+			select_sai(aln_buf[j][i], p[j], &main_idx);
 
 			if (p[j]->type == BWA_TYPE_UNIQUE || p[j]->type == BWA_TYPE_REPEAT) {
-				alignment_t *main_aln = &aln[j]->a[main_idx];
+				alignment_t *main_aln = &aln_buf[j][i]->a[main_idx];
 				int max_diff = gopt->fnr > 0.0? bwa_cal_maxdiff(p[j]->len, BWA_AVG_ERR, gopt->fnr) : gopt->max_diff;
 				p[j]->pos = bwtdb_sa2seq(main_aln->db, p[j]->strand, p[j]->sa, p[j]->len);
 				p[j]->seQ = p[j]->mapQ = bwa_approx_mapQ(p[j], max_diff);
@@ -414,7 +412,7 @@ int bwa_cal_pac_pos_pe(dbset_t *dbs, int n_seqs, bwa_seq_t *seqs[2], saiset_t *s
 	// PE
 	for (i = 0; i < 2; ++i) {
 		tp.dbs = dbs;
-		tp.buf[i] = buf[i];
+		tp.buf[i] = aln_buf[i];
 		tp.seqs[i] = seqs[i];
 	}
 	tp.n_seqs = n_seqs;
@@ -429,13 +427,11 @@ int bwa_cal_pac_pos_pe(dbset_t *dbs, int n_seqs, bwa_seq_t *seqs[2], saiset_t *s
 
 	// free
 	free(tp.cnt_chg);
-	alngrp_destroy(aln[0]);
-	alngrp_destroy(aln[1]);
 	for (i = 0; i < n_seqs; ++i) {
-		kv_destroy(buf[0][i]);
-		kv_destroy(buf[1][i]);
+		alngrp_destroy(aln_buf[0][i]);
+		alngrp_destroy(aln_buf[1][i]);
 	}
-	free(buf[0]); free(buf[1]);
+	free(aln_buf[0]); free(aln_buf[1]);
 	return cnt_chg;
 }
 
