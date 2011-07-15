@@ -28,7 +28,16 @@ typedef struct {
 	bwtint_t low, high, high_bayesian;
 } isize_info_t;
 
-typedef kvec_t(uint64_t) pos_arr_t;
+typedef struct {
+	uint64_t pos;
+	uint32_t idx_and_end;
+} position_t;
+/* Find the alignment object given a position_t and array of alignments */
+#define __aln_end(x)    ((x).idx_and_end&1)
+#define __aln_idx(x)    ((x).idx_and_end>>1)
+#define __aln(x, aln) (aln[__aln_end(x)].a[__aln_idx(x)])
+
+typedef kvec_t(position_t) pos_arr_t;
 typedef kvec_t(bwt_aln1_t) aln_buf_t;
 
 typedef struct {
@@ -71,6 +80,11 @@ void bwa_print_sam1(const dbset_t *dbs, bwa_seq_t *p, const bwa_seq_t *mate, int
 void bwa_refine_gapped(dbset_t *dbs, int n_seqs, bwa_seq_t *seqs);
 bntseq_t *bwa_open_nt(const char *prefix);
 void bwa_print_sam_PG();
+
+int position_lt(const position_t a, const position_t b) {
+	return a.pos < b.pos;
+}
+KSORT_INIT(position, position_t, position_lt);
 
 pe_opt_t *bwa_init_pe_opt()
 {
@@ -184,18 +198,18 @@ static int infer_isize(int n_seqs, bwa_seq_t *seqs[2], isize_info_t *ii, double 
 	return 0;
 }
 
-static inline int mappings_overlap(uint64_t a, uint64_t b, const alngrp_t aln[2]) {
+static inline int mappings_overlap(const position_t *a, const position_t* b, const alngrp_t aln[2]) {
 	const alignment_t *aln1;
 	const alignment_t *aln2;
 
-	if (a == (uint64_t)-1 || b == (uint64_t)-1)
+	if (a->pos == (uint64_t)-1 || b->pos == (uint64_t)-1)
 		return 0;
 
-	aln1 = aln[a&1].a + ((uint32_t)a >> 1);
-	aln2 = aln[b&1].a + ((uint32_t)b >> 1);
+	aln1 = &__aln(*a, aln);
+	aln2 = &__aln(*b, aln);
 
-	if ((a >> 32) == (b >> 32) && 
-		(a&1) == (b&1) &&
+	if ((a->pos == b->pos) && 
+		(a->idx_and_end&1) == (b->idx_and_end&1) &&
 		aln1->db != aln2->db
 	) {
 /*
@@ -210,17 +224,15 @@ static inline int mappings_overlap(uint64_t a, uint64_t b, const alngrp_t aln[2]
 	return 0;
 }
 
-static inline uint64_t select_mapping(const alngrp_t aln[2], const pos_arr_t *arr, int begin, int end) {
+static inline position_t *select_mapping(const alngrp_t aln[2], const pos_arr_t *arr, int begin, int end) {
 	int i;
-	uint64_t best = arr->a[begin];
+	position_t *best = &arr->a[begin];
 
-#define __aln(x) (aln[(x)&1].a[(uint32_t)(x)>>1].aln)
 	for (i = begin+1; i < end; ++i) {
-		uint64_t x = arr->a[i];
-		if (__aln(x).score > __aln(best).score)
-			best = x;
+		position_t *p = &arr->a[i];
+		if (__aln(*p, aln).aln.score > __aln(*best, aln).aln.score)
+			best = p;
 	}
-#undef __aln
 
 	return best;
 }
@@ -228,57 +240,61 @@ static inline uint64_t select_mapping(const alngrp_t aln[2], const pos_arr_t *ar
 static int pairing(bwa_seq_t *p[2], const pos_arr_t *arr, const alngrp_t aln[2], const pe_opt_t *opt, int s_mm, const isize_info_t *ii)
 {
 	int i, j, o_n, subo_n, cnt_chg = 0, low_bound = ii->low, max_len;
-	uint64_t last_pos[2][2], o_pos[2], subo_score, o_score;
+	position_t last_pos[2][2], o_pos[2]; /* TODO: make these into arrays of pointers */
+	uint64_t subo_score, o_score;
 	max_len = p[0]->full_len;
 	if (max_len < p[1]->full_len) max_len = p[1]->full_len;
 	if (low_bound < max_len) low_bound = max_len;
 
 	// here v>=u. When ii is set, we check insert size with ii; otherwise with opt->max_isize
+
 #define __pairing_aux(u,v) do {											\
-		bwtint_t l = ((v)>>32) + p[(v)&1]->len - ((u)>>32);				\
-		if ((u) != (uint64_t)-1 && (v)>>32 > (u)>>32 && l >= max_len	\
-			&& ((ii->high && l <= ii->high_bayesian) || (ii->high == 0 && l <= opt->max_isize))) \
+		bwtint_t l = (v).pos + p[__aln_end(v)]->len - (u).pos;			\
+		if ((u).pos != (uint64_t)-1 && (v).pos > (u).pos && l >= max_len\
+			&& ((ii->high && l <= ii->high_bayesian) 					\
+			|| (ii->high == 0 && l <= opt->max_isize))) 				\
 		{																\
-			uint64_t s = aln[(v)&1].a[(uint32_t)(v)>>1].aln.score + aln[(u)&1].a[(uint32_t)(u)>>1].aln.score; \
+			uint64_t s = __aln(v, aln).aln.score + __aln(u, aln).aln.score;		\
 			s *= 10;													\
 			if (ii->high) s += (int)(-4.343 * log(.5 * erfc(M_SQRT1_2 * fabs(l - ii->avg) / ii->std)) + .499); \
-			s = s<<32 | (uint32_t)hash_64((u)>>32<<32 | (v)>>32);		\
+			s = s<<32 | (uint32_t)hash_64((u).pos<<32 | (v).pos);		\
 			if (s>>32 == o_score>>32) ++o_n;							\
 			else if (s>>32 < o_score>>32) { subo_n += o_n; o_n = 1; }	\
 			else ++subo_n;												\
-			if (s < o_score) subo_score = o_score, o_score = s, o_pos[(u)&1] = (u), o_pos[(v)&1] = (v); \
+			if (s < o_score) subo_score = o_score, o_score = s, o_pos[__aln_end(u)] = (u), o_pos[__aln_end(v)] = (v); \
 			else if (s < subo_score) subo_score = s;					\
 		}																\
 	} while (0)
 
 #define __pairing_aux2(q, w) do {										\
-		const bwt_aln1_t *r = &aln[(w)&1].a[((uint32_t)(w)>>1)].aln;	\
+		const bwt_aln1_t *r = &__aln(w, aln).aln;						\
 		(q)->extra_flag |= SAM_FPP;										\
-		if ((q)->pos != (w)>>32 || (q)->strand != r->a) {				\
+		if ((q)->pos != (w).pos || (q)->strand != r->a) {				\
 			(q)->n_mm = r->n_mm; (q)->n_gapo = r->n_gapo; (q)->n_gape = r->n_gape; (q)->strand = r->a; \
 			(q)->score = r->score;										\
-			(q)->pos = (w)>>32;											\
+			(q)->pos = (w).pos;											\
 			if ((q)->mapQ > 0) ++cnt_chg;								\
 		}																\
 	} while (0)
 
 	o_score = subo_score = (uint64_t)-1;
 	o_n = subo_n = 0;
-	ks_introsort(uint64_t, arr->n, arr->a);
-	for (j = 0; j < 2; ++j) last_pos[j][0] = last_pos[j][1] = (uint64_t)-1;
+	ks_introsort(position, arr->n, arr->a);
+	for (j = 0; j < 2; ++j) last_pos[j][0].pos = last_pos[j][1].pos = (uint64_t)-1;
 	if (opt->type == BWA_PET_STD) {
 		i = 0;
 		while (i < arr->n) {
-			uint64_t x = arr->a[i];
-			int strand = aln[x&1].a[(uint32_t)x>>1].aln.a;
+			position_t *pos = &arr->a[i];
+			uint32_t x = pos->idx_and_end;
+			int strand = aln[x&1].a[x>>1].aln.a;
 
 			if (i < arr->n-1) {
 				int k = i+1;
-				while (mappings_overlap(x, arr->a[k], aln))
+				while (mappings_overlap(pos, &arr->a[k], aln))
 					k++;
 				if (k > i+1) {
 					i = k;
-					x = select_mapping(aln, arr, i, k);
+					pos = select_mapping(aln, arr, i, k);
 				} else ++i;
 			} else {
 				++i;
@@ -286,14 +302,15 @@ static int pairing(bwa_seq_t *p[2], const pos_arr_t *arr, const alngrp_t aln[2],
 
 			if (strand == 1) { // reverse strand, then check
 				int y = 1 - (x&1);
-				__pairing_aux(last_pos[y][1], x);
-				__pairing_aux(last_pos[y][0], x);
+				__pairing_aux(last_pos[y][1], *pos);
+				__pairing_aux(last_pos[y][0], *pos);
 			} else { // forward strand, then push
 				last_pos[x&1][0] = last_pos[x&1][1];
-				last_pos[x&1][1] = x;
+				last_pos[x&1][1] = *pos;
 			}
 		}
 	} else if (opt->type == BWA_PET_SOLID) {
+/*
 		for (i = 0; i < arr->n; ++i) {
 			uint64_t x = arr->a[i];
 			int strand = aln[x&1].a[(uint32_t)x>>1].aln.a;
@@ -306,6 +323,7 @@ static int pairing(bwa_seq_t *p[2], const pos_arr_t *arr, const alngrp_t aln[2],
 				last_pos[x&1][1] = x;
 			}
 		}
+*/
 	} else {
 		fprintf(stderr, "[paring] not implemented yet!\n");
 		exit(1);
@@ -325,9 +343,9 @@ static int pairing(bwa_seq_t *p[2], const pos_arr_t *arr, const alngrp_t aln[2],
 				if (mapQ_p < 0) mapQ_p = 0;
 			}
 		}
-		rr[0] = aln[o_pos[0]&1].a[(uint32_t)o_pos[0]>>1].aln.a;
-		rr[1] = aln[o_pos[1]&1].a[(uint32_t)o_pos[1]>>1].aln.a;
-		if ((p[0]->pos == o_pos[0]>>32 && p[0]->strand == rr[0]) && (p[1]->pos == o_pos[1]>>32 && p[1]->strand == rr[1])) { // both ends not moved
+		rr[0] = __aln(o_pos[0], aln).aln.a;
+		rr[1] = __aln(o_pos[1], aln).aln.a;
+		if ((p[0]->pos == o_pos[0].pos && p[0]->strand == rr[0]) && (p[1]->pos == o_pos[1].pos && p[1]->strand == rr[1])) { // both ends not moved
 			if (p[0]->mapQ > 0 && p[1]->mapQ > 0) {
 				int mapQ = p[0]->mapQ + p[1]->mapQ;
 				if (mapQ > 60) mapQ = 60;
@@ -336,10 +354,10 @@ static int pairing(bwa_seq_t *p[2], const pos_arr_t *arr, const alngrp_t aln[2],
 				if (p[0]->mapQ == 0) p[0]->mapQ = (mapQ_p + 7 < p[1]->mapQ)? mapQ_p + 7 : p[1]->mapQ;
 				if (p[1]->mapQ == 0) p[1]->mapQ = (mapQ_p + 7 < p[0]->mapQ)? mapQ_p + 7 : p[0]->mapQ;
 			}
-		} else if (p[0]->pos == o_pos[0]>>32 && p[0]->strand == rr[0]) { // [1] moved
+		} else if (p[0]->pos == o_pos[0].pos && p[0]->strand == rr[0]) { // [1] moved
 			p[1]->seQ = 0; p[1]->mapQ = p[0]->mapQ;
 			if (p[1]->mapQ > mapQ_p) p[1]->mapQ = mapQ_p;
-		} else if (p[1]->pos == o_pos[1]>>32 && p[1]->strand == rr[1]) { // [0] moved
+		} else if (p[1]->pos == o_pos[1].pos && p[1]->strand == rr[1]) { // [0] moved
 			p[0]->seQ = 0; p[0]->mapQ = p[1]->mapQ;
 			if (p[0]->mapQ > mapQ_p) p[0]->mapQ = mapQ_p;
 		} else { // both ends moved
@@ -389,7 +407,7 @@ static void bwa_cal_pac_pos_pe_thread(uint32_t idx, uint32_t size, void *data)
 		if ((p[0]->type == BWA_TYPE_UNIQUE || p[0]->type == BWA_TYPE_REPEAT)
 			&& (p[1]->type == BWA_TYPE_UNIQUE || p[1]->type == BWA_TYPE_REPEAT))
 		{ // only when both ends mapped
-			uint64_t x;
+			position_t alnpos;
 			int j, k, n_occ[2];
 			for (j = 0; j < 2; ++j) {
 				n_occ[j] = 0;
@@ -406,16 +424,16 @@ static void bwa_cal_pac_pos_pe_thread(uint32_t idx, uint32_t size, void *data)
 						/* TODO: cache remappings */
 						poslist_t pos = bwtdb_cached_sa2seq(ar->db, &ar->aln, p[j]->len);
 						for (l = 0; l < pos.n; ++l) {
-							x = remap(pos.a[l], ar->db);
-							x = x<<32 | k<<1 | j;
-							kv_push(uint64_t, arr, x);
+							alnpos.pos = remap(pos.a[l], ar->db);
+							alnpos.idx_and_end = k<<1 | j;
+							kv_push(position_t, arr, alnpos);
 						}
 					} else { // then calculate on the fly
 						for (l = ar->aln.k; l <= ar->aln.l; ++l) {
-							x = bwtdb_sa2seq(ar->db, ar->aln.a, l, p[j]->len);
-							x = remap(x, ar->db);
-							x = x<<32 | k<<1 | j;
-							kv_push(uint64_t, arr, x);
+							alnpos.pos = bwtdb_sa2seq(ar->db, ar->aln.a, l, p[j]->len);
+							alnpos.pos = remap(alnpos.pos, ar->db);
+							alnpos.idx_and_end = k<<1 | j;
+							kv_push(position_t, arr, alnpos);
 						}
 					}
 
@@ -893,7 +911,7 @@ static void dump_pe_inputs(const pe_inputs_t *inputs)
 	fprintf(stderr, "[%s]: %d sets\n", __func__, inputs->count);
 	fprintf(stderr, " - fastq files: %s, %s\n", inputs->fq[0], inputs->fq[1]);
 	for (i = 0; i < inputs->count; ++i) {
-		fprintf(stderr, " - ref: %s sai pair: <%s> <%s>\n",
+		fprintf(stderr, " - ref: %s, sai pair: <%s> <%s>\n",
 			inputs->prefixes.a[i],
 			inputs->sai_pair.a[i][0],
 			inputs->sai_pair.a[i][1]);
