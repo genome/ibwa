@@ -1,5 +1,6 @@
 #include "dbset.h"
 #include "kstring.h"
+#include "bwaremap.h"
 
 #include <assert.h>
 #include <stdio.h>
@@ -12,7 +13,7 @@ extern char *bwa_rg_id;
 bntseq_t *bwa_open_nt(const char *prefix);
 
 /* binary search through sequences to find the one containing pos */
-static int coord2idx(const dbset_t *dbs, int64_t pos) {
+int coord2idx(const dbset_t *dbs, int64_t pos) {
     int left = 0, right = dbs->count;
     int mid = 0;
 
@@ -80,6 +81,9 @@ static seq_t *seq_restore(const char *prefix, const char *extension) {
     strcat(strcpy(path, prefix), extension);
     seq_t *s = calloc(1, sizeof(seq_t));
     s->bns = bns_restore(path);
+    s->remap = s->bns->n_seqs > 0 && can_remap(s->bns->anns[0].name);
+    if (s->remap)
+        fprintf(stderr, " - Remapping enabled for sequence %s\n", prefix);
     return s;
 }
 
@@ -107,6 +111,7 @@ dbset_t *dbset_restore(int count, const char **prefixes, int mode, int preload) 
     dbset_t *dbs = calloc(1, sizeof(dbset_t));
     dbs->count = count;
     dbs->db = (bwtdb_t**)calloc(count, sizeof(bwtdb_t*));
+    dbs->coord_map = calloc(count, sizeof(uint32_t*));
     dbs->bns = calloc(count, sizeof(seq_t*));
     dbs->ntbns = calloc(count, sizeof(seq_t*));
     dbs->preload = preload;
@@ -117,18 +122,20 @@ dbset_t *dbset_restore(int count, const char **prefixes, int mode, int preload) 
         dbs->db[i] = bwtdb_load(prefixes[i]);
         dbs->db[i]->offset = dbs->l_pac;
         dbs->bns[i] = seq_restore(prefixes[i], "");
+        dbs->db[i]->bns = dbs->bns[i];
         dbs->l_pac += dbs->bns[i]->bns->l_pac;
 
 
 /* TODO: get rid of these, we just need the length of the bwt */
-            bwtdb_load_sa(dbs->db[i], 0);
-            bwtdb_load_sa(dbs->db[i], 1);
+        bwtdb_load_sa(dbs->db[i], 0);
+        bwtdb_load_sa(dbs->db[i], 1);
 
         dbs->total_bwt_seq_len[0] += dbs->db[i]->bwt[0]->seq_len;
         dbs->total_bwt_seq_len[1] += dbs->db[i]->bwt[1]->seq_len;
 
         if (dbs->color_space) {
             dbs->ntbns[i] = seq_restore(prefixes[i], ".nt");
+            dbs->db[i]->ntbns = dbs->ntbns[i];
             dbs->color_space = 1;
         } else if (preload) {
             seq_load_pac(dbs->bns[i]);
@@ -146,8 +153,11 @@ void dbset_destroy(dbset_t *dbs) {
         bwtdb_destroy(dbs->db[i]);
         seq_destroy(dbs->bns[i]);
         seq_destroy(dbs->ntbns[i]);
+        if (dbs->coord_map[i])
+            free(dbs->coord_map[i]);
     }
     free(dbs->db);
+    free(dbs->coord_map);
     free(dbs->bns);
     free(dbs->ntbns);
     free(dbs);
@@ -207,9 +217,9 @@ void dbset_unload_ntpac(dbset_t *dbs) {
 
 uint64_t bwtdb_sa2seq(const bwtdb_t *db, int strand, uint32_t sa, uint32_t seq_len) {
     if (strand) {
-        return db->offset + bwt_sa(db->bwt[0], sa);
+        return bwt_sa(db->bwt[0], sa);
     } else {
-        return db->offset + db->bwt[1]->seq_len - (bwt_sa(db->bwt[1], sa) + seq_len);
+        return db->bwt[1]->seq_len - (bwt_sa(db->bwt[1], sa) + seq_len);
     }
 }
 

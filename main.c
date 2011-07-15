@@ -19,6 +19,7 @@ static int usage()
 	fprintf(stderr, "         sampe         generate alignment (paired ended)\n");
 	fprintf(stderr, "         bwasw         BWA-SW for long queries\n");
 	fprintf(stderr, "\n");
+	fprintf(stderr, "         remap         remap coordinates in reference sequences\n");
 	fprintf(stderr, "         fa2pac        convert FASTA to PAC format\n");
 	fprintf(stderr, "         pac2bwt       generate BWT from PAC\n");
 	fprintf(stderr, "         pac2bwtgen    alternative algorithm for generating BWT\n");
@@ -39,7 +40,8 @@ void bwa_print_sam_PG()
 int main(int argc, char *argv[])
 {
 	if (argc < 2) return usage();
-	if (strcmp(argv[1], "fa2pac") == 0) return bwa_fa2pac(argc-1, argv+1);
+	if (strcmp(argv[1], "remap") == 0) return bwa_remap(argc-1, argv+1);
+	else if (strcmp(argv[1], "fa2pac") == 0) return bwa_fa2pac(argc-1, argv+1);
 	else if (strcmp(argv[1], "pac2bwt") == 0) return bwa_pac2bwt(argc-1, argv+1);
 	else if (strcmp(argv[1], "pac2bwtgen") == 0) return bwt_bwtgen_main(argc-1, argv+1);
 	else if (strcmp(argv[1], "bwtupdate") == 0) return bwa_bwtupdate(argc-1, argv+1);

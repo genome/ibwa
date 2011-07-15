@@ -12,6 +12,7 @@
 #include "bwtcache.h"
 #include "dbset.h"
 #include "saiset.h"
+#include "bwaremap.h"
 
 #include "threadblock.h"
 
@@ -183,6 +184,47 @@ static int infer_isize(int n_seqs, bwa_seq_t *seqs[2], isize_info_t *ii, double 
 	return 0;
 }
 
+static inline int mappings_overlap(uint64_t a, uint64_t b, const alngrp_t aln[2]) {
+	const alignment_t *aln1;
+	const alignment_t *aln2;
+
+	if (a == (uint64_t)-1 || b == (uint64_t)-1)
+		return 0;
+
+	aln1 = aln[a&1].a + ((uint32_t)a >> 1);
+	aln2 = aln[b&1].a + ((uint32_t)b >> 1);
+
+	if ((a >> 32) == (b >> 32) && 
+		(a&1) == (b&1) &&
+		aln1->db != aln2->db
+	) {
+/*
+		fprintf(stderr, "Overlap! %u & %u, %u / %u - %d - %d\n",
+			(uint32_t)(a>>32), (uint32_t)(b>>32),
+			(uint32_t)(a>>1), (uint32_t)(b>>1),
+			a&1, b&1
+			);
+*/
+		return 1;
+	}
+	return 0;
+}
+
+static inline uint64_t select_mapping(const alngrp_t aln[2], const pos_arr_t *arr, int begin, int end) {
+	int i;
+	uint64_t best = arr->a[begin];
+
+#define __aln(x) (aln[(x)&1].a[(uint32_t)(x)>>1].aln)
+	for (i = begin+1; i < end; ++i) {
+		uint64_t x = arr->a[i];
+		if (__aln(x).score > __aln(best).score)
+			best = x;
+	}
+#undef __aln
+
+	return best;
+}
+
 static int pairing(bwa_seq_t *p[2], const pos_arr_t *arr, const alngrp_t aln[2], const pe_opt_t *opt, int s_mm, const isize_info_t *ii)
 {
 	int i, j, o_n, subo_n, cnt_chg = 0, low_bound = ii->low, max_len;
@@ -225,9 +267,23 @@ static int pairing(bwa_seq_t *p[2], const pos_arr_t *arr, const alngrp_t aln[2],
 	ks_introsort(uint64_t, arr->n, arr->a);
 	for (j = 0; j < 2; ++j) last_pos[j][0] = last_pos[j][1] = (uint64_t)-1;
 	if (opt->type == BWA_PET_STD) {
-		for (i = 0; i < arr->n; ++i) {
+		i = 0;
+		while (i < arr->n) {
 			uint64_t x = arr->a[i];
 			int strand = aln[x&1].a[(uint32_t)x>>1].aln.a;
+
+			if (i < arr->n-1) {
+				int k = i+1;
+				while (mappings_overlap(x, arr->a[k], aln))
+					k++;
+				if (k > i+1) {
+					i = k;
+					x = select_mapping(aln, arr, i, k);
+				} else ++i;
+			} else {
+				++i;
+			}
+
 			if (strand == 1) { // reverse strand, then check
 				int y = 1 - (x&1);
 				__pairing_aux(last_pos[y][1], x);
@@ -298,6 +354,17 @@ static int pairing(bwa_seq_t *p[2], const pos_arr_t *arr, const alngrp_t aln[2],
 	return cnt_chg;
 }
 
+static uint32_t remap(const uint32_t pos, bwtdb_t *db) {
+	uint32_t x;
+
+	if (!db->bns->remap) /* not all sequences need remapping */
+		return pos;
+
+	/* get the position relative to the particular sequence it is from */
+	x = bwa_remap_position(db->bns->bns, pos);
+	return x;
+}
+
 static void bwa_cal_pac_pos_pe_thread(uint32_t idx, uint32_t size, void *data)
 {
 	cal_pac_pos_params_t const *tdata = (cal_pac_pos_params_t*)data;
@@ -336,15 +403,17 @@ static void bwa_cal_pac_pos_pe_thread(uint32_t idx, uint32_t size, void *data)
 					alignment_t *ar = &aln[j].a[k];
 					bwtint_t l;
 					if (ar->aln.l - ar->aln.k + 1 >= MIN_HASH_WIDTH) { // then check hash table
+						/* TODO: cache remappings */
 						poslist_t pos = bwtdb_cached_sa2seq(ar->db, &ar->aln, p[j]->len);
 						for (l = 0; l < pos.n; ++l) {
-							x  = pos.a[l];
+							x = remap(pos.a[l], ar->db);
 							x = x<<32 | k<<1 | j;
 							kv_push(uint64_t, arr, x);
 						}
 					} else { // then calculate on the fly
 						for (l = ar->aln.k; l <= ar->aln.l; ++l) {
 							x = bwtdb_sa2seq(ar->db, ar->aln.a, l, p[j]->len);
+							x = remap(x, ar->db);
 							x = x<<32 | k<<1 | j;
 							kv_push(uint64_t, arr, x);
 						}
@@ -719,7 +788,7 @@ void bwa_sai2sam_pe_core(pe_inputs_t* inputs, pe_opt_t *popt)
 	ks[1] = bwa_open_reads(gopt->mode, inputs->fq[1]);
 
 	dbs = dbset_restore(inputs->count, inputs->prefixes.a, gopt->mode, popt->is_preload);
-	srand48(dbs->bns[0]->bns->seed);
+	srand48(dbs->db[0]->bns->bns->seed);
 
 	// core loop
 	dbset_print_sam_SQ(dbs);

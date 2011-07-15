@@ -266,11 +266,11 @@ int bwa_fa2pac(int argc, char *argv[])
 	return 0;
 }
 
-int bns_coor_pac2real(const bntseq_t *bns, int64_t pac_coor, int len, int32_t *real_seq)
+int32_t bns_seq_for_pos(const bntseq_t *bns, int64_t pac_coor)
 {
-	int left, mid, right, nn;
+	int32_t left, mid, right;
 	if (pac_coor >= bns->l_pac)
-		err_fatal("bns_coor_pac2real", "bug! Coordinate is longer than sequence (%lld>=%lld).", pac_coor, bns->l_pac);
+		err_fatal(__func__, "bug! Coordinate is longer than sequence (%lld>=%lld).", pac_coor, bns->l_pac);
 	// binary search for the sequence ID. Note that this is a bit different from the following one...
 	left = 0; mid = 0; right = bns->n_seqs;
 	while (left < right) {
@@ -281,7 +281,13 @@ int bns_coor_pac2real(const bntseq_t *bns, int64_t pac_coor, int len, int32_t *r
 			left = mid + 1;
 		} else right = mid;
 	}
-	*real_seq = mid;
+	return mid;
+}
+
+int bns_coor_pac2real(const bntseq_t *bns, int64_t pac_coor, int len, int32_t *real_seq)
+{
+	int32_t left, mid, right, nn;
+	*real_seq = bns_seq_for_pos(bns, pac_coor);
 	// binary search for holes
 	left = 0; right = bns->n_holes; nn = 0;
 	while (left < right) {

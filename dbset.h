@@ -11,6 +11,7 @@
 typedef struct {
     bntseq_t *bns;
     ubyte_t *data;
+    int remap; /* set if the sequence is logically remapped onto another*/
 } seq_t;
 
 typedef struct {
@@ -18,6 +19,8 @@ typedef struct {
     bwt_t *bwt[2]; 
     bwtcache_t *bwtcache;
     uint64_t offset;
+    seq_t *bns;
+    seq_t *ntbns;
 } bwtdb_t;
 
 typedef struct {
@@ -25,6 +28,7 @@ typedef struct {
     int color_space;
     int preload;
     bwtdb_t **db;
+    uint32_t **coord_map;
     seq_t **bns;
     seq_t **ntbns;
     uint64_t l_pac;
@@ -36,6 +40,7 @@ typedef struct {
 extern "C" {
 #endif /* __cplusplus */
 
+    int coord2idx(const dbset_t *dbs, int64_t pos);
     dbset_t *dbset_restore(int count, const char **prefixes, int mode, int preload);
     void dbset_destroy(dbset_t *dbs);
 

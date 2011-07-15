@@ -9,6 +9,8 @@
 
 typedef struct {
     bwt_aln1_t aln;
+    int remapped;
+    bwt_aln1_t orig_aln;
     bwtdb_t *db;
 } alignment_t;
 
@@ -16,7 +18,7 @@ typedef kvec_t(alignment_t) alngrp_t;
 
 typedef struct {
     int count;
-	FILE **fp[2];
+    FILE **fp[2];
     gap_opt_t opt[2];
 } saiset_t;
 

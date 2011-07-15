@@ -52,18 +52,22 @@ endif()
 
 # Build ####################################################################
 add_subdirectory(bwt_gen)
-set(SOURCES
+set(LIB_SOURCES
     bamlite.c bamlite.h bntseq.c bntseq.h bwape.c bwase.c bwase.h bwaseqio.c
     bwt.c bwt.h bwt_lite.c bwt_lite.h bwtaln.c bwtaln.h bwtcache.c bwtcache.h
     bwtgap.c bwtgap.h bwtindex.c bwtio.c bwtmisc.c bwtsw2.h bwtsw2_aux.c
     bwtsw2_chain.c bwtsw2_core.c bwtsw2_main.c cs2nt.c is.c
     khash.h kseq.h ksort.h kstring.c kstring.h kvec.h
     simple_dp.c stdaln.c stdaln.h threadblock.c threadblock.h utils.c utils.h
-    dbset.c dbset.h saiset.c saiset.h
-    main.c main.h
+    dbset.c dbset.h saiset.c saiset.h 
+    byteorder.c byteorder.h
+    bwaremap.c bwaremap.h
 )
-add_executable(${BWA_EXECUTABLE_NAME} ${SOURCES})
-target_link_libraries(${BWA_EXECUTABLE_NAME}
+set(MAIN_SOURCES main.c main.h)
+
+add_library(bwa ${LIB_SOURCES})
+add_executable(${BWA_EXECUTABLE_NAME} ${MAIN_SOURCES})
+target_link_libraries(${BWA_EXECUTABLE_NAME} bwa
     bwtgen ${MATH_LIBRARY} ${ZLIB_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
 install(TARGETS ${BWA_EXECUTABLE_NAME} DESTINATION bin/)
 install(FILES bwa.1 DESTINATION share/man/man1/

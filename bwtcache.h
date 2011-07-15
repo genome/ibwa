@@ -16,13 +16,13 @@ typedef enum {
 } cache_item_state_t;
 
 typedef struct {
-	uint32_t n;
-	bwtint_t *a;
+    uint32_t n;
+    bwtint_t *a;
 } poslist_t;
 
 typedef struct {
     cache_item_state_t state;
-	poslist_t pos;
+    poslist_t pos;
 } bwtcache_itm_t;
 
 #ifdef __cplusplus
