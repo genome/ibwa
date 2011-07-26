@@ -61,6 +61,7 @@ set(LIB_SOURCES
     simple_dp.c stdaln.c stdaln.h threadblock.c threadblock.h utils.c utils.h
     dbset.c dbset.h saiset.c saiset.h 
     byteorder.c byteorder.h
+    bwapair.c bwapair.h
     bwaremap.c bwaremap.h
 )
 set(MAIN_SOURCES main.c main.h)

@@ -26,8 +26,10 @@ int coord2idx(const dbset_t *dbs, int64_t pos) {
             if (mid == dbs->count-1) break;
             if (pos < dbs->db[mid+1]->offset) break;
             left = mid + 1;
-        } else {
+        } else if (pos < dbs->db[mid]->offset) {
             right = mid;
+        } else {
+            break;
         }
     }
 
@@ -217,9 +219,9 @@ void dbset_unload_ntpac(dbset_t *dbs) {
 
 uint64_t bwtdb_sa2seq(const bwtdb_t *db, int strand, uint32_t sa, uint32_t seq_len) {
     if (strand) {
-        return bwt_sa(db->bwt[0], sa);
+        return db->offset + bwt_sa(db->bwt[0], sa);
     } else {
-        return db->bwt[1]->seq_len - (bwt_sa(db->bwt[1], sa) + seq_len);
+        return db->offset + db->bwt[1]->seq_len - (bwt_sa(db->bwt[1], sa) + seq_len);
     }
 }
 
@@ -233,7 +235,7 @@ int dbset_coor_pac2real(const dbset_t *dbs, int64_t pac_coor, int len, int32_t *
 }
 
 poslist_t bwtdb_cached_sa2seq(const bwtdb_t *db, const bwt_aln1_t* aln, uint32_t seq_len) {
-    return bwt_cached_sa(db->bwtcache, (const bwt_t **const)db->bwt, aln, seq_len);
+    return bwt_cached_sa(db->offset, db->bwtcache, (const bwt_t **const)db->bwt, aln, seq_len);
 }
 
 uint32_t dbset_extract_sequence(const dbset_t *dbs, seq_t **seqs, ubyte_t* ref_seq, uint64_t beg, uint32_t len) {
@@ -247,6 +249,7 @@ uint32_t dbset_extract_sequence(const dbset_t *dbs, seq_t **seqs, ubyte_t* ref_s
         s = seqs[idx];
         db = dbs->db[idx];
         idx = beg - db->offset;
+        /* TODO: this is wrong */
         while (idx < s->bns->l_pac && total < len) {
             ref_seq[total++] = bns_pac(s->data, idx);
             ++idx; /* bns_pac is a macro referencing idx more than once */

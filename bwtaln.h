@@ -49,7 +49,7 @@ typedef uint16_t bwa_cigar_t;
 #define __cigar_create(__op, __len) ((__op)<<CIGAR_OP_SHIFT | (__len))
 
 typedef struct {
-	uint32_t pos;
+	uint64_t pos;
 	uint32_t n_cigar:15, gap:8, mm:8, strand:1;
 	bwa_cigar_t *cigar;
 } bwt_multi1_t;
@@ -68,7 +68,8 @@ typedef struct {
 	int n_multi;
 	bwt_multi1_t *multi;
 	// alignment information
-	bwtint_t sa, pos;
+	bwtint_t sa;
+	uint64_t pos;
 	uint64_t c1:28, c2:28, seQ:8; // number of top1 and top2 hits; single-end mapQ
 	int n_cigar;
 	bwa_cigar_t *cigar;
@@ -112,6 +113,7 @@ typedef struct {
 	int n_multi, N_multi;
 	int n_threads;
 	int type, is_sw, is_preload;
+	int remapping;
 	double ap_prior;
 } pe_opt_t;
 

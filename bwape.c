@@ -13,6 +13,7 @@
 #include "dbset.h"
 #include "saiset.h"
 #include "bwaremap.h"
+#include "bwapair.h"
 
 #include "threadblock.h"
 
@@ -23,21 +24,6 @@ typedef struct {
 	kvec_t(const char**) sai_pair;
 } pe_inputs_t;
 
-typedef struct {
-	double avg, std, ap_prior;
-	bwtint_t low, high, high_bayesian;
-} isize_info_t;
-
-typedef struct {
-	uint64_t pos;
-	uint32_t idx_and_end;
-} position_t;
-/* Find the alignment object given a position_t and array of alignments */
-#define __aln_end(x)    ((x).idx_and_end&1)
-#define __aln_idx(x)    ((x).idx_and_end>>1)
-#define __aln(x, aln) (aln[__aln_end(x)].a[__aln_idx(x)])
-
-typedef kvec_t(position_t) pos_arr_t;
 typedef kvec_t(bwt_aln1_t) aln_buf_t;
 
 typedef struct {
@@ -81,15 +67,11 @@ void bwa_refine_gapped(dbset_t *dbs, int n_seqs, bwa_seq_t *seqs);
 bntseq_t *bwa_open_nt(const char *prefix);
 void bwa_print_sam_PG();
 
-int position_lt(const position_t a, const position_t b) {
-	return a.pos < b.pos;
-}
-KSORT_INIT(position, position_t, position_lt);
-
 pe_opt_t *bwa_init_pe_opt()
 {
 	pe_opt_t *po;
 	po = (pe_opt_t*)calloc(1, sizeof(pe_opt_t));
+	po->remapping = 0;
 	po->max_isize = 500;
 	po->force_isize = 0;
 	po->max_occ = 100000;
@@ -102,18 +84,6 @@ pe_opt_t *bwa_init_pe_opt()
 	return po;
 }
 
-static inline uint64_t hash_64(uint64_t key)
-{
-	key += ~(key << 32);
-	key ^= (key >> 22);
-	key += ~(key << 13);
-	key ^= (key >> 8);
-	key += (key << 3);
-	key ^= (key >> 15);
-	key += ~(key << 27);
-	key ^= (key >> 31);
-	return key;
-}
 /*
 static double ierfc(double x) // inverse erfc(); iphi(x) = M_SQRT2 *ierfc(2 * x);
 {
@@ -198,47 +168,9 @@ static int infer_isize(int n_seqs, bwa_seq_t *seqs[2], isize_info_t *ii, double 
 	return 0;
 }
 
-static inline int mappings_overlap(const position_t *a, const position_t* b, const alngrp_t aln[2]) {
-	const alignment_t *aln1;
-	const alignment_t *aln2;
-
-	if (a->pos == (uint64_t)-1 || b->pos == (uint64_t)-1)
-		return 0;
-
-	aln1 = &__aln(*a, aln);
-	aln2 = &__aln(*b, aln);
-
-	if ((a->pos == b->pos) && 
-		(a->idx_and_end&1) == (b->idx_and_end&1) &&
-		aln1->db != aln2->db
-	) {
-/*
-		fprintf(stderr, "Overlap! %u & %u, %u / %u - %d - %d\n",
-			(uint32_t)(a>>32), (uint32_t)(b>>32),
-			(uint32_t)(a>>1), (uint32_t)(b>>1),
-			a&1, b&1
-			);
-*/
-		return 1;
-	}
-	return 0;
-}
-
-static inline position_t *select_mapping(const alngrp_t aln[2], const pos_arr_t *arr, int begin, int end) {
-	int i;
-	position_t *best = &arr->a[begin];
-
-	for (i = begin+1; i < end; ++i) {
-		position_t *p = &arr->a[i];
-		if (__aln(*p, aln).aln.score > __aln(*best, aln).aln.score)
-			best = p;
-	}
-
-	return best;
-}
-
 static int pairing(bwa_seq_t *p[2], const pos_arr_t *arr, const alngrp_t aln[2], const pe_opt_t *opt, int s_mm, const isize_info_t *ii)
 {
+#if 0
 	int i, j, o_n, subo_n, cnt_chg = 0, low_bound = ii->low, max_len;
 	position_t last_pos[2][2], o_pos[2]; /* TODO: make these into arrays of pointers */
 	uint64_t subo_score, o_score;
@@ -285,28 +217,27 @@ static int pairing(bwa_seq_t *p[2], const pos_arr_t *arr, const alngrp_t aln[2],
 		i = 0;
 		while (i < arr->n) {
 			position_t *pos = &arr->a[i];
-			uint32_t x = pos->idx_and_end;
-			int strand = aln[x&1].a[x>>1].aln.a;
+			int strand = aln[pos->idx_and_end&1].a[pos->idx_and_end>>1].aln.a;
 
 			if (i < arr->n-1) {
-				int k = i+1;
-				while (mappings_overlap(pos, &arr->a[k], aln))
+				int k = i;
+				while (mappings_overlap(pos, &arr->a[k+1], aln))
 					k++;
-				if (k > i+1) {
-					i = k;
+				if (k > i) {
 					pos = select_mapping(aln, arr, i, k);
+					i = k;
 				} else ++i;
 			} else {
 				++i;
 			}
 
 			if (strand == 1) { // reverse strand, then check
-				int y = 1 - (x&1);
+				int y = 1 - (pos->idx_and_end&1);
 				__pairing_aux(last_pos[y][1], *pos);
 				__pairing_aux(last_pos[y][0], *pos);
 			} else { // forward strand, then push
-				last_pos[x&1][0] = last_pos[x&1][1];
-				last_pos[x&1][1] = *pos;
+				last_pos[pos->idx_and_end&1][0] = last_pos[pos->idx_and_end&1][1];
+				last_pos[pos->idx_and_end&1][1] = *pos;
 			}
 		}
 	} else if (opt->type == BWA_PET_SOLID) {
@@ -370,6 +301,8 @@ static int pairing(bwa_seq_t *p[2], const pos_arr_t *arr, const alngrp_t aln[2],
 		__pairing_aux2(p[1], o_pos[1]);
 	}
 	return cnt_chg;
+#endif
+    return 0;
 }
 
 static uint32_t remap(const uint32_t pos, bwtdb_t *db) {
@@ -424,14 +357,17 @@ static void bwa_cal_pac_pos_pe_thread(uint32_t idx, uint32_t size, void *data)
 						/* TODO: cache remappings */
 						poslist_t pos = bwtdb_cached_sa2seq(ar->db, &ar->aln, p[j]->len);
 						for (l = 0; l < pos.n; ++l) {
-							alnpos.pos = remap(pos.a[l], ar->db);
+							alnpos.pos = pos.a[l];
+							if (opt->remapping)
+								alnpos.pos = remap(alnpos.pos, ar->db);
 							alnpos.idx_and_end = k<<1 | j;
 							kv_push(position_t, arr, alnpos);
 						}
 					} else { // then calculate on the fly
 						for (l = ar->aln.k; l <= ar->aln.l; ++l) {
 							alnpos.pos = bwtdb_sa2seq(ar->db, ar->aln.a, l, p[j]->len);
-							alnpos.pos = remap(alnpos.pos, ar->db);
+							if (opt->remapping)
+								alnpos.pos = remap(alnpos.pos, ar->db);
 							alnpos.idx_and_end = k<<1 | j;
 							kv_push(position_t, arr, alnpos);
 						}
@@ -439,7 +375,11 @@ static void bwa_cal_pac_pos_pe_thread(uint32_t idx, uint32_t size, void *data)
 
 				}
 			}
-			tdata->cnt_chg[idx] += pairing(p, &arr, aln, opt, gopt->s_mm, ii);
+            {
+                pairing_param_t pairing_param = { p, &arr, aln, opt, gopt->s_mm, ii };
+                //tdata->cnt_chg[idx] += pairing(p, &arr, aln, opt, gopt->s_mm, ii);
+                tdata->cnt_chg[idx] += find_optimal_pair(&pairing_param);
+            }
 		}
 
 		if (opt->N_multi || opt->n_multi) {
@@ -944,6 +884,7 @@ int bwa_sai2sam_pe(int argc, char *argv[])
 		case 'c': popt->ap_prior = atof(optarg); break;
 		case 'f': xreopen(optarg, "w", stdout); break;
 		case 'A': popt->force_isize = 1; break;
+		case 'R': popt->remapping = 1; break;
 		default: return 1;
 		}
 	}
@@ -963,6 +904,7 @@ int bwa_sai2sam_pe(int argc, char *argv[])
 		fprintf(stderr, "         -P       preload index into memory (for base-space reads only)\n");
 		fprintf(stderr, "         -s       disable Smith-Waterman for the unmapped mate\n");
 		fprintf(stderr, "         -A       disable insert size estimate (force -s)\n\n");
+		fprintf(stderr, "         -R       enable compound sequence remapping\n");
 		fprintf(stderr, "Notes: 1. For SOLiD reads, <in1.fq> corresponds R3 reads and <in2.fq> to F3.\n");
 		fprintf(stderr, "       2. For reads shorter than 30bp, applying a smaller -o is recommended to\n");
 		fprintf(stderr, "          to get a sensible speed at the cost of pairing accuracy.\n");

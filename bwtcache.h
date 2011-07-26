@@ -16,7 +16,7 @@ typedef enum {
 } cache_item_state_t;
 
 typedef struct {
-    uint32_t n;
+    uint64_t n;
     bwtint_t *a;
 } poslist_t;
 
@@ -29,15 +29,10 @@ typedef struct {
 extern "C" {
 #endif
 
-    poslist_t bwt_cached_sa(bwtcache_t *c, const bwt_t *const bwt[2], const bwt_aln1_t *a, uint32_t seqlen);
+    poslist_t bwt_cached_sa(uint64_t offset, bwtcache_t *c, const bwt_t *const bwt[2], const bwt_aln1_t *a, uint32_t seqlen);
 
     bwtcache_t *bwtcache_create();
     void bwtcache_destroy(bwtcache_t *c);
-
-    /* TODO: make these static */
-    bwtcache_itm_t bwtcache_get(bwtcache_t *c, uint64_t key);
-    void bwtcache_put(bwtcache_t *c, uint64_t key, bwtcache_itm_t *value);
-    bwtcache_itm_t bwtcache_wait(bwtcache_t *c, uint64_t key);
 
 #ifdef __cplusplus
 }

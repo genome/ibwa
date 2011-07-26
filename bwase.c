@@ -163,7 +163,7 @@ void bwa_cal_pac_pos(dbset_t *dbs, int n_seqs, bwa_seq_t *seqs, int max_mm, floa
  * forward strand. This happens when p->pos is calculated by
  * bwa_cal_pac_pos(). is_end_correct==0 if (*pos) gives the correct
  * coordinate. This happens only for color-converted alignment. */
-static bwa_cigar_t *refine_gapped_core(dbset_t *dbs, seq_t **bns, int len, const ubyte_t *seq, bwtint_t *_pos,
+static bwa_cigar_t *refine_gapped_core(dbset_t *dbs, seq_t **bns, int len, const ubyte_t *seq, uint64_t *_pos,
 									   int ext, int *n_cigar, int is_end_correct)
 {
 	bwa_cigar_t *cigar = 0;

@@ -21,6 +21,12 @@ struct _bwtcache_t {
     uint64_t cache_waits;
 };
 
+static bwtcache_itm_t bwtcache_get(bwtcache_t *c, uint64_t key);
+static void bwtcache_put(bwtcache_t *c, uint64_t key, bwtcache_itm_t *value);
+static bwtcache_itm_t bwtcache_wait(bwtcache_t *c, uint64_t key);
+
+
+
 bwtcache_t *bwtcache_create() {
     bwtcache_t *c = calloc(1, sizeof(bwtcache_t));
     c->hash = kh_init(64);
@@ -34,7 +40,7 @@ bwtcache_t *bwtcache_create() {
     return c;
 }
 
-poslist_t bwt_cached_sa(bwtcache_t *c, const bwt_t * const bwt[2], const bwt_aln1_t *a, uint32_t seqlen) {
+poslist_t bwt_cached_sa(uint64_t offset, bwtcache_t *c, const bwt_t * const bwt[2], const bwt_aln1_t *a, uint32_t seqlen) {
     bwtint_t l;
     bwtcache_itm_t itm;
     uint64_t key = (uint64_t)a->k<<32 | a->l;
@@ -43,7 +49,7 @@ poslist_t bwt_cached_sa(bwtcache_t *c, const bwt_t * const bwt[2], const bwt_aln
         itm.pos.n = a->l - a->k + 1;
         itm.pos.a = (bwtint_t*)malloc(sizeof(bwtint_t) * itm.pos.n);
         for (l = a->k; l <= a->l; ++l)
-            itm.pos.a[l - a->k] = a->a? bwt_sa(bwt[0], l) : bwt[1]->seq_len - (bwt_sa(bwt[1], l) + seqlen);
+            itm.pos.a[l - a->k] = offset + a->a? bwt_sa(bwt[0], l) : bwt[1]->seq_len - (bwt_sa(bwt[1], l) + seqlen);
         bwtcache_put(c, key, &itm);
     } else if (itm.state == eLOADING) {
         return bwtcache_wait(c, key).pos;
@@ -68,7 +74,7 @@ void bwtcache_destroy(bwtcache_t *c) {
     free(c);
 }
 
-bwtcache_itm_t bwtcache_get(bwtcache_t* c, uint64_t key) {
+static bwtcache_itm_t bwtcache_get(bwtcache_t* c, uint64_t key) {
     khint_t iter;
     int ret;
     bwtcache_itm_t *item; 
@@ -93,7 +99,7 @@ bwtcache_itm_t bwtcache_get(bwtcache_t* c, uint64_t key) {
     return rv;
 }
 
-void bwtcache_put(bwtcache_t *c, uint64_t key, bwtcache_itm_t *value) {
+static void bwtcache_put(bwtcache_t *c, uint64_t key, bwtcache_itm_t *value) {
     khint_t iter;
     int ret;
     bwtcache_itm_t *item; 
@@ -116,7 +122,7 @@ void bwtcache_put(bwtcache_t *c, uint64_t key, bwtcache_itm_t *value) {
 #endif /* HAVE_PTHREAD */
 }
 
-bwtcache_itm_t bwtcache_wait(bwtcache_t *c, uint64_t key) {
+static bwtcache_itm_t bwtcache_wait(bwtcache_t *c, uint64_t key) {
     khint_t iter;
     bwtcache_itm_t *item;
     int ret;
