@@ -44,56 +44,74 @@ static inline int mappings_overlap(const position_t *a, const position_t* b, con
     aln2 = &__aln(*b, aln);
 
     if ((a->remapped_pos == b->remapped_pos) &&
-        (a->idx_and_end&1) == (b->idx_and_end&1) &&
-        aln1->db != aln2->db
+        (a->idx_and_end&1) == (b->idx_and_end&1)
     ) {
         return 1;
     }
     return 0;
 }
 
-static inline position_t *select_mapping(const alngrp_t aln[2], const pos_arr_t *arr, int begin, int end) {
+static inline position_t *select_mapping(const alngrp_t aln[2], const pos_arr_t *arr, int begin, int end, int *n_optimal) {
     int i;
     position_t *best = &arr->a[begin];
 
     for (i = begin+1; i <= end; ++i) {
         position_t *p = &arr->a[i];
-        if (__aln(*p, aln).aln.score < __aln(*best, aln).aln.score)
+        int this_score = __aln(*p, aln).aln.score;
+        int best_score = __aln(*best, aln).aln.score;
+        if (__aln(*p, aln).aln.score < __aln(*best, aln).aln.score) {
+            *n_optimal = 1;
             best = p;
+        } else if (this_score == best_score) {
+            ++(*n_optimal);
+            /* randomly pick one here? */
+        }
     }
 
     return best;
 }
 
-static void pairing_aux(const pairing_param_t *param, pairing_internals_t *pint, const position_t *u, const position_t *v) {
-    /* for convenience */
+static void pairing_aux(const pairing_param_t *param, pairing_internals_t *pint, const position_t *u, const position_t *v, int n_optimal) {
     bwa_seq_t **p = param->p;
     const alngrp_t *aln = param->aln;
     const pe_opt_t *opt = param->opt;
     const isize_info_t *ii = param->ii;
 
-
     // here v>=u. When ii is set, we check insert size with ii; otherwise with opt->max_isize
     bwtint_t l = v->remapped_pos + p[__aln_end(*v)]->len - u->remapped_pos;
-    if (u->remapped_pos != (uint64_t)-1 && v->remapped_pos > u->remapped_pos && l >= pint->max_len
-        && ((ii->high && l <= ii->high_bayesian)
+    if (u->remapped_pos != (uint64_t)-1 && v->remapped_pos > u->remapped_pos
+        && l >= pint->max_len && ((ii->high && l <= ii->high_bayesian)
         || (ii->high == 0 && l <= opt->max_isize)))
     {
         uint64_t s = __aln(*v, aln).aln.score + __aln(*u, aln).aln.score;
         s *= 10;
-        if (ii->high) s += (int)(-4.343 * log(.5 * erfc(M_SQRT1_2 * fabs(l - ii->avg) / ii->std)) + .499);
+        /* penalize for deviation from the average insert size */
+        if (ii->high)
+            s += (int)(-4.343 * log(.5 * erfc(M_SQRT1_2 * fabs(l - ii->avg) / ii->std)) + .499);
+
         s = s<<32 | (uint32_t)hash_64(u->remapped_pos<<32 | v->remapped_pos);
-        if (s>>32 == pint->o_score>>32) ++pint->o_n;
-        else if (s>>32 < pint->o_score>>32) { pint->subo_n += pint->o_n; pint->o_n = 1; }
-        else ++pint->subo_n;
-        if (s < pint->o_score) pint->subo_score = pint->o_score,
-            pint->o_score = s, pint->o_pos[__aln_end(*u)] = *u, pint->o_pos[__aln_end(*v)] = *v;
-        else if (s < pint->subo_score) pint->subo_score = s;
+
+        if (s>>32 == pint->o_score>>32) {
+            pint->o_n += n_optimal;
+        } else if (s>>32 < pint->o_score>>32) {
+            pint->subo_n += pint->o_n;
+            pint->o_n = n_optimal;
+        } else {
+            pint->subo_n += n_optimal;
+        }
+
+        if (s < pint->o_score) {
+            pint->subo_score = pint->o_score;
+            pint->o_score = s;
+            pint->o_pos[__aln_end(*u)] = *u;
+            pint->o_pos[__aln_end(*v)] = *v;
+        } else if (s < pint->subo_score) {
+            pint->subo_score = s;
+        }
     }
 }
 
 static void pairing_aux2(const pairing_param_t *param, pairing_internals_t *pint, bwa_seq_t *read, const position_t *pos) {
-    /* for convenience */
     const alngrp_t *aln = param->aln;
 
     const bwt_aln1_t *r = &__aln(*pos, aln).aln;
@@ -107,7 +125,6 @@ static void pairing_aux2(const pairing_param_t *param, pairing_internals_t *pint
 }
 
 int find_optimal_pair(const pairing_param_t *param) {
-    /* for convenience */
     bwa_seq_t **p = param->p;
     const pos_arr_t *arr = param->arr;
     const alngrp_t *aln = param->aln;
@@ -132,13 +149,14 @@ int find_optimal_pair(const pairing_param_t *param) {
         while (i < arr->n) {
             position_t *pos = &arr->a[i];
             int strand = aln[pos->idx_and_end&1].a[pos->idx_and_end>>1].aln.a;
+            int n_optimal = 1;
 
             if (i < arr->n-1) {
                 int k = i;
                 while (mappings_overlap(pos, &arr->a[k+1], aln))
                     k++;
                 if (k > i) {
-                    pos = select_mapping(aln, arr, i, k);
+                    pos = select_mapping(aln, arr, i, k, &n_optimal);
                     i = k;
                 } else ++i;
             } else {
@@ -147,8 +165,8 @@ int find_optimal_pair(const pairing_param_t *param) {
 
             if (strand == 1) { // reverse strand, then check
                 int y = 1 - (pos->idx_and_end&1);
-                pairing_aux(param, &pint, &pint.last_pos[y][1], pos);
-                pairing_aux(param, &pint, &pint.last_pos[y][0], pos);
+                pairing_aux(param, &pint, &pint.last_pos[y][1], pos, n_optimal);
+                pairing_aux(param, &pint, &pint.last_pos[y][0], pos, n_optimal);
             } else { // forward strand, then push
                 pint.last_pos[pos->idx_and_end&1][0] = pint.last_pos[pos->idx_and_end&1][1];
                 pint.last_pos[pos->idx_and_end&1][1] = *pos;
@@ -178,9 +196,11 @@ int find_optimal_pair(const pairing_param_t *param) {
         int mapQ_p = 0; // this is the maximum mapping quality when one end is moved
         int rr[2];
         if (pint.o_n == 1) {
-            if (pint.subo_score == (uint64_t)-1) mapQ_p = 29; // no sub-optimal pair
-            else if ((pint.subo_score>>32) - (pint.o_score>>32) > s_mm * 10) mapQ_p = 23; // poor sub-optimal pair
-            else {
+            if (pint.subo_score == (uint64_t)-1) {
+                mapQ_p = 29; // no sub-optimal pair
+            } else if ((pint.subo_score>>32) - (pint.o_score>>32) > s_mm * 10) {
+                 mapQ_p = 23; // poor sub-optimal pair
+            } else {
                 int n = pint.subo_n > 255? 255 : pint.subo_n;
                 mapQ_p = ((pint.subo_score>>32) - (pint.o_score>>32)) / 2 - g_log_n[n];
                 if (mapQ_p < 0) mapQ_p = 0;
