@@ -175,7 +175,7 @@ static uint32_t remap(const uint32_t pos, bwtdb_t *db) {
 		return pos;
 
 	/* get the position relative to the particular sequence it is from */
-	x = bwa_remap_position(db->bns->bns, pos);
+	x = bwa_remap_position(db->bns->bns, pos - db->offset);
 	return x;
 }
 
@@ -220,17 +220,17 @@ static void bwa_cal_pac_pos_pe_thread(uint32_t idx, uint32_t size, void *data)
 						/* TODO: cache remappings */
 						poslist_t pos = bwtdb_cached_sa2seq(ar->db, &ar->aln, p[j]->len);
 						for (l = 0; l < pos.n; ++l) {
-							alnpos.pos = pos.a[l];
+							alnpos.remapped_pos = alnpos.pos = pos.a[l];
 							if (opt->remapping)
-								alnpos.pos = remap(alnpos.pos, ar->db);
+								alnpos.remapped_pos = remap(alnpos.pos, ar->db);
 							alnpos.idx_and_end = k<<1 | j;
 							kv_push(position_t, arr, alnpos);
 						}
 					} else { // then calculate on the fly
 						for (l = ar->aln.k; l <= ar->aln.l; ++l) {
-							alnpos.pos = bwtdb_sa2seq(ar->db, ar->aln.a, l, p[j]->len);
+							alnpos.remapped_pos = alnpos.pos = bwtdb_sa2seq(ar->db, ar->aln.a, l, p[j]->len);
 							if (opt->remapping)
-								alnpos.pos = remap(alnpos.pos, ar->db);
+								alnpos.remapped_pos = remap(alnpos.pos, ar->db);
 							alnpos.idx_and_end = k<<1 | j;
 							kv_push(position_t, arr, alnpos);
 						}
@@ -728,7 +728,7 @@ int bwa_sai2sam_pe(int argc, char *argv[])
 	int c;
 	pe_opt_t *popt;
 	popt = bwa_init_pe_opt();
-	while ((c = getopt(argc, argv, "a:o:sPn:N:c:f:Ar:t:")) >= 0) {
+	while ((c = getopt(argc, argv, "a:o:sPn:N:c:f:ARr:t:")) >= 0) {
 		switch (c) {
 		case 'r':
 			if (bwa_set_rg(optarg) < 0) {

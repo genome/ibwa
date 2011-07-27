@@ -16,6 +16,7 @@ typedef struct {
 
 typedef struct {
 	uint64_t pos;
+    uint64_t remapped_pos;
 	uint32_t idx_and_end;
 } position_t;
 /* Find the alignment object given a position_t and array of alignments */
