@@ -19,7 +19,7 @@ int read_mapping_extract(const char *str, read_mapping_t *m) {
         return 0;
 
     beg = str + 6;
-    end = strchr(beg, ',');
+    end = strchr(beg, '|');
     if (beg == end || end == 0)
         return 0;
 
@@ -29,7 +29,7 @@ int read_mapping_extract(const char *str, read_mapping_t *m) {
     beg = end+1;
 
     m->start = strtoul(beg, &end, 10);
-    if (end == beg || *end != ',')
+    if (end == beg || *end != '|')
         return 0;
 
     beg = end+1;

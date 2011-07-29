@@ -1,6 +1,7 @@
 #include "dbset.h"
-#include "kstring.h"
 #include "bwaremap.h"
+#include "kstring.h"
+#include "utils.h"
 
 #include <assert.h>
 #include <stdio.h>
@@ -238,23 +239,57 @@ poslist_t bwtdb_cached_sa2seq(const bwtdb_t *db, const bwt_aln1_t* aln, uint32_t
     return bwt_cached_sa(db->offset, db->bwtcache, (const bwt_t **const)db->bwt, aln, seq_len);
 }
 
+uint32_t dbset_extract_remapped(const dbset_t *dbs, seq_t **seqs, uint32_t primary, ubyte_t* ref_seq, uint64_t beg, uint32_t len) {
+    seq_t *s = seqs[primary];
+    bwtdb_t *db = dbs->db[primary];
+    uint64_t seq_begin = db->offset;
+    uint64_t remapped_begin = bwa_remap_position(db->bns->bns, 0);
+    uint64_t remapped_end = bwa_remap_position(db->bns->bns, s->bns->l_pac-1)+1;
+    uint32_t total = 0;
+
+    if (beg < seq_begin) {
+        uint64_t sublen = seq_begin - beg;
+        uint64_t offset = remapped_begin - sublen;
+        if (sublen > len)
+            sublen = len;
+        total += dbset_extract_sequence(dbs, seqs, &ref_seq[total], offset, sublen);
+    }
+
+    if (total < len) {
+        uint32_t sublen = len - total;
+        if (sublen > s->bns->l_pac)
+            sublen = s->bns->l_pac;
+        total += dbset_extract_sequence(dbs, seqs, &ref_seq[total], seq_begin, sublen);
+    }
+
+    if (total < len) {
+        total += dbset_extract_sequence(dbs, seqs, &ref_seq[total], remapped_end, len-total);
+    }
+
+    if (total != len) {
+        err_fatal(__func__, "logic error: got %lu bases instead of %lu\n", total, len);
+    }
+
+    return total;
+}
+
 uint32_t dbset_extract_sequence(const dbset_t *dbs, seq_t **seqs, ubyte_t* ref_seq, uint64_t beg, uint32_t len) {
     uint32_t total = 0;
     while (total < len) {
-        int64_t idx;
+        int64_t idx, pos;
         seq_t *s; 
         bwtdb_t *db;
         if (beg > dbs->l_pac) break;
         idx = coord2idx(dbs, beg);
         s = seqs[idx];
         db = dbs->db[idx];
-        idx = beg - db->offset;
+        pos = beg - db->offset;
         /* TODO: this is wrong */
-        while (idx < s->bns->l_pac && total < len) {
-            ref_seq[total++] = bns_pac(s->data, idx);
-            ++idx; /* bns_pac is a macro referencing idx more than once */
+        while (pos < s->bns->l_pac && total < len) {
+            ref_seq[total++] = bns_pac(s->data, pos);
+            ++pos; /* bns_pac is a macro referencing idx more than once */
         }
-        beg = idx + db->offset;
+        beg = pos + db->offset;
     }
     return total;
 }

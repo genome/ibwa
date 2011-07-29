@@ -120,6 +120,7 @@ static void pairing_aux2(const pairing_param_t *param, pairing_internals_t *pint
         read->n_mm = r->n_mm; read->n_gapo = r->n_gapo; read->n_gape = r->n_gape; read->strand = r->a;
         read->score = r->score;
         read->pos = pos->pos;
+        read->remapped_pos = pos->remapped_pos;
         if (read->mapQ > 0) ++pint->cnt_chg;
     }
 }

@@ -70,6 +70,7 @@ typedef struct {
 	// alignment information
 	bwtint_t sa;
 	uint64_t pos;
+	uint64_t remapped_pos;
 	uint64_t c1:28, c2:28, seQ:8; // number of top1 and top2 hits; single-end mapQ
 	int n_cigar;
 	bwa_cigar_t *cigar;

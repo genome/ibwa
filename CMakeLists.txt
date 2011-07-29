@@ -62,6 +62,7 @@ set(LIB_SOURCES
     dbset.c dbset.h saiset.c saiset.h 
     byteorder.c byteorder.h
     bwapair.c bwapair.h
+    bwasw.c bwasw.h
     bwaremap.c bwaremap.h
 )
 set(MAIN_SOURCES main.c main.h)
