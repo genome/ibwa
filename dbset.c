@@ -239,30 +239,37 @@ poslist_t bwtdb_cached_sa2seq(const bwtdb_t *db, const bwt_aln1_t* aln, uint32_t
     return bwt_cached_sa(db->offset, db->bwtcache, (const bwt_t **const)db->bwt, aln, seq_len);
 }
 
-uint32_t dbset_extract_remapped(const dbset_t *dbs, seq_t **seqs, uint32_t primary, ubyte_t* ref_seq, uint64_t beg, uint32_t len) {
-    seq_t *s = seqs[primary];
-    bwtdb_t *db = dbs->db[primary];
-    uint64_t seq_begin = db->offset;
-    uint64_t remapped_begin = bwa_remap_position(db->bns->bns, 0);
-    uint64_t remapped_end = bwa_remap_position(db->bns->bns, s->bns->l_pac-1)+1;
+uint32_t dbset_extract_remapped(const dbset_t *dbs, seq_t **seqs, uint32_t dbidx, int32_t seqid, ubyte_t* ref_seq, uint64_t beg, uint32_t len) {
+    bwtdb_t *db = dbs->db[dbidx];
+    uint64_t seq_begin;
     uint32_t total = 0;
+    bntann1_t *ann;
+
+    if (seqid < 0 || !db->bns->remap) {
+        return dbset_extract_sequence(dbs, seqs, ref_seq, beg, len);
+    }
+
+    ann = db->bns->bns->anns + seqid;
+    seq_begin = db->offset + ann->offset;
 
     if (beg < seq_begin) {
+        uint64_t remapped_begin = bwa_remap_position_with_seqid(db->bns->bns, ann->offset, seqid);
         uint64_t sublen = seq_begin - beg;
         uint64_t offset = remapped_begin - sublen;
-        if (sublen > len)
-            sublen = len;
+        if (sublen > remapped_begin)
+            err_fatal(__func__, "request too far ahead of remapped region");
         total += dbset_extract_sequence(dbs, seqs, &ref_seq[total], offset, sublen);
     }
 
     if (total < len) {
         uint32_t sublen = len - total;
-        if (sublen > s->bns->l_pac)
-            sublen = s->bns->l_pac;
+        if (sublen > ann->len)
+            sublen = ann->len;
         total += dbset_extract_sequence(dbs, seqs, &ref_seq[total], seq_begin, sublen);
     }
 
     if (total < len) {
+        uint64_t remapped_end = bwa_remap_position_with_seqid(db->bns->bns, ann->offset + ann->len-1, seqid)+1;
         total += dbset_extract_sequence(dbs, seqs, &ref_seq[total], remapped_end, len-total);
     }
 
@@ -279,7 +286,7 @@ uint32_t dbset_extract_sequence(const dbset_t *dbs, seq_t **seqs, ubyte_t* ref_s
         int64_t idx, pos;
         seq_t *s; 
         bwtdb_t *db;
-        if (beg > dbs->l_pac) break;
+        if (beg >= dbs->l_pac) break;
         idx = coord2idx(dbs, beg);
         s = seqs[idx];
         db = dbs->db[idx];

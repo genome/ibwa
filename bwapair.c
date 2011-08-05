@@ -121,6 +121,7 @@ static void pairing_aux2(const pairing_param_t *param, pairing_internals_t *pint
         read->score = r->score;
         read->pos = pos->pos;
         read->remapped_pos = pos->remapped_pos;
+        read->remapped_seqid = pos->remapped_seqid;
         if (read->mapQ > 0) ++pint->cnt_chg;
     }
 }

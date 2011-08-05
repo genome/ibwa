@@ -10,6 +10,7 @@
 typedef struct {
     bwt_aln1_t aln;
     int remapped;
+    uint32_t dbidx;
     bwtdb_t *db;
 } alignment_t;
 

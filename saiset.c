@@ -54,6 +54,7 @@ alngrp_t *alngrp_create(const dbset_t *dbs, const saiset_t *s, int which) {
         for (j = 0; j < count; ++j) {
             fread(&ag->a[ag->n].aln, sizeof(bwt_aln1_t), 1, s->fp[which][i]);
             ag->a[ag->n].db = dbs->db[i];
+            ag->a[ag->n].dbidx = i;
             ag->a[ag->n].remapped = 0;
             ++ag->n;
         }

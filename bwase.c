@@ -163,7 +163,8 @@ void bwa_cal_pac_pos(dbset_t *dbs, int n_seqs, bwa_seq_t *seqs, int max_mm, floa
  * forward strand. This happens when p->pos is calculated by
  * bwa_cal_pac_pos(). is_end_correct==0 if (*pos) gives the correct
  * coordinate. This happens only for color-converted alignment. */
-static bwa_cigar_t *refine_gapped_core(dbset_t *dbs, seq_t **bns, int len, const ubyte_t *seq, uint64_t *_pos,
+static bwa_cigar_t *refine_gapped_core(dbset_t *dbs, seq_t **bns, uint32_t dbidx, int32_t seqid,
+                                       int len, const ubyte_t *seq, uint64_t *_pos,
 									   int ext, int *n_cigar, int is_end_correct)
 {
 	bwa_cigar_t *cigar = 0;
@@ -171,7 +172,13 @@ static bwa_cigar_t *refine_gapped_core(dbset_t *dbs, seq_t **bns, int len, const
 	int l = 0, path_len, ref_len;
 	AlnParam ap = aln_param_bwa;
 	path_t *path;
-	int64_t k, __pos = *_pos > dbs->l_pac? (int64_t)((int32_t)*_pos) : *_pos;
+	int64_t k;
+    /* originally had: int64_t __pos = *_pos > l_pac? (int64_t)((int32_t)*_pos) : *_pos;
+     * I'm not sure what the goal of that is. */
+    if (*_pos > dbs->l_pac) {
+        err_fatal(__func__, "position=%llu > l_pac=%llu\n", *_pos, dbs->l_pac);
+    }
+    int64_t __pos = (int64_t)*_pos;
 	int64_t ref_start;
 
 	ref_len = len + abs(ext);
@@ -184,7 +191,7 @@ static bwa_cigar_t *refine_gapped_core(dbset_t *dbs, seq_t **bns, int len, const
 	}
 
 	ref_seq = (ubyte_t*)calloc(ref_len, 1);
-	l = dbset_extract_sequence(dbs, bns, ref_seq, ref_start, ref_len); 
+	l = dbset_extract_remapped(dbs, bns, dbidx, seqid, ref_seq, ref_start, ref_len); 
 	path = (path_t*)calloc(l+len, sizeof(path_t));
 
 	aln_global_core(ref_seq, l, (ubyte_t*)seq, len, &ap, path, &path_len);
@@ -317,12 +324,12 @@ void bwa_refine_gapped(dbset_t *dbs, int n_seqs, bwa_seq_t *seqs)
 			bwt_multi1_t *q = s->multi + j;
 			int n_cigar;
 			if (q->gap == 0) continue;
-			q->cigar = refine_gapped_core(dbs, dbs->bns, s->len, q->strand? s->rseq : s->seq, &q->pos,
+			q->cigar = refine_gapped_core(dbs, dbs->bns, q->dbidx, q->remapped_seqid, s->len, q->strand? s->rseq : s->seq, &q->pos,
 										  (q->strand? 1 : -1) * q->gap, &n_cigar, 1);
 			q->n_cigar = n_cigar;
 		}
 		if (s->type == BWA_TYPE_NO_MATCH || s->type == BWA_TYPE_MATESW || s->n_gapo == 0) continue;
-		s->cigar = refine_gapped_core(dbs, dbs->bns, s->len, s->strand? s->rseq : s->seq, &s->pos,
+		s->cigar = refine_gapped_core(dbs, dbs->bns, s->dbidx, s->remapped_seqid, s->len, s->strand? s->rseq : s->seq, &s->pos,
 									  (s->strand? 1 : -1) * (s->n_gapo + s->n_gape), &s->n_cigar, 1);
 	}
 
@@ -337,13 +344,13 @@ void bwa_refine_gapped(dbset_t *dbs, int n_seqs, bwa_seq_t *seqs)
 				int n_cigar;
 				if (q->gap == 0) continue;
 				free(q->cigar);
-				q->cigar = refine_gapped_core(dbs, dbs->ntbns, s->len, q->strand? s->rseq : s->seq, &q->pos,
+				q->cigar = refine_gapped_core(dbs, dbs->ntbns, q->dbidx, s->remapped_seqid, s->len, q->strand? s->rseq : s->seq, &q->pos,
 											  (q->strand? 1 : -1) * q->gap, &n_cigar, 0);
 				q->n_cigar = n_cigar;
 			}
 			if (s->type != BWA_TYPE_NO_MATCH && s->cigar) { // update cigar again
 				free(s->cigar);
-				s->cigar = refine_gapped_core(dbs, dbs->ntbns, s->len, s->strand? s->rseq : s->seq, &s->pos,
+				s->cigar = refine_gapped_core(dbs, dbs->ntbns, s->dbidx, s->remapped_seqid, s->len, s->strand? s->rseq : s->seq, &s->pos,
 											  (s->strand? 1 : -1) * (s->n_gapo + s->n_gape), &s->n_cigar, 0);
 			}
 		}

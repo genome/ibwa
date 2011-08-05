@@ -103,8 +103,14 @@ int remap_read_coordinates(const read_mapping_t *m, uint32_t *remapped, uint32_t
     return 1;
 }
 
-uint32_t bwa_remap_position(const bntseq_t* bns, uint64_t pac_coor) {
-    int32_t seqid = bns_seq_for_pos(bns, pac_coor);
+uint32_t bwa_remap_position(const bntseq_t* bns, uint64_t pac_coor, int32_t* seqid) {
+    *seqid = bns_seq_for_pos(bns, pac_coor);
+    return bwa_remap_position_with_seqid(bns, pac_coor, *seqid); 
+}
+
+/* looking up the seqid is expensive. bwa_remap_position allows the value to be stored and then
+ * ..._with_seqid can be used later. */
+uint32_t bwa_remap_position_with_seqid(const bntseq_t* bns, uint64_t pac_coor, int32_t seqid) {
     uint32_t rv = 0;
     read_mapping_t m;
     uint32_t *map = calloc(bns->anns[seqid].len, sizeof(uint32_t));

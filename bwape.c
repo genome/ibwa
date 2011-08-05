@@ -154,20 +154,34 @@ static int infer_isize(int n_seqs, bwa_seq_t *seqs[2], isize_info_t *ii, double 
 	return 0;
 }
 
-static uint32_t remap(const uint32_t pos, bwtdb_t *db) {
+static uint32_t __remap(const uint32_t pos, const bwtdb_t *db, int32_t *seqid) {
 	uint32_t x;
 
-	if (!db->bns->remap) /* not all sequences need remapping */
+	if (!db->bns->remap) {/* not all sequences need remapping */
+		*seqid = -1;
 		return pos;
+	}
 
 	/* get the position relative to the particular sequence it is from */
-	x = bwa_remap_position(db->bns->bns, pos - db->offset);
+	x = bwa_remap_position(db->bns->bns, pos - db->offset, seqid);
 	return x;
 }
+#define remap(p, dbs, _dbidx, opt_remap) do { \
+		const bwtdb_t *db = dbs->db[(_dbidx)]; \
+		(p)->dbidx = (_dbidx); \
+		if ((opt_remap)) { \
+			(p)->remapped_pos = __remap((p)->pos, (db), &(p)->remapped_seqid); \
+		} else { \
+			(p)->remapped_pos = (p)->pos; \
+			(p)->remapped_seqid = -1; \
+		} \
+	} while (0);
+
 
 static void bwa_cal_pac_pos_pe_thread(uint32_t idx, uint32_t size, void *data)
 {
 	cal_pac_pos_params_t const *tdata = (cal_pac_pos_params_t*)data;
+	const dbset_t *dbs = tdata->dbs;
 	const alngrp_t **buf[2] = {tdata->buf[0], tdata->buf[1]};
 	int n_seqs = tdata->n_seqs;
 	bwa_seq_t *seqs[2] = {tdata->seqs[0], tdata->seqs[1]};
@@ -204,30 +218,27 @@ static void bwa_cal_pac_pos_pe_thread(uint32_t idx, uint32_t size, void *data)
 					bwtint_t l;
 					if (ar->aln.l - ar->aln.k + 1 >= MIN_HASH_WIDTH) { // then check hash table
 						/* TODO: cache remappings */
-						poslist_t pos = bwtdb_cached_sa2seq(ar->db, &ar->aln, p[j]->len);
+						poslist_t pos = bwtdb_cached_sa2seq(dbs->db[ar->dbidx], &ar->aln, p[j]->len);
 						for (l = 0; l < pos.n; ++l) {
-							alnpos.remapped_pos = alnpos.pos = pos.a[l];
-							if (opt->remapping)
-								alnpos.remapped_pos = remap(alnpos.pos, ar->db);
+							alnpos.pos = pos.a[l];
+							remap(&alnpos, dbs, ar->dbidx, opt->remapping);
 							alnpos.idx_and_end = k<<1 | j;
 							kv_push(position_t, arr, alnpos);
 						}
 					} else { // then calculate on the fly
 						for (l = ar->aln.k; l <= ar->aln.l; ++l) {
-							alnpos.remapped_pos = alnpos.pos = bwtdb_sa2seq(ar->db, ar->aln.a, l, p[j]->len);
-							if (opt->remapping)
-								alnpos.remapped_pos = remap(alnpos.pos, ar->db);
+							alnpos.pos = bwtdb_sa2seq(dbs->db[ar->dbidx], ar->aln.a, l, p[j]->len);
+							remap(&alnpos, dbs, ar->dbidx, opt->remapping);
 							alnpos.idx_and_end = k<<1 | j;
 							kv_push(position_t, arr, alnpos);
 						}
 					}
-
 				}
 			}
-            {
-                pairing_param_t pairing_param = { p, &arr, aln, opt, gopt->s_mm, ii };
-                tdata->cnt_chg[idx] += find_optimal_pair(&pairing_param);
-            }
+			{
+				pairing_param_t pairing_param = { p, &arr, aln, opt, gopt->s_mm, ii };
+				tdata->cnt_chg[idx] += find_optimal_pair(&pairing_param);
+			}
 		}
 
 		if (opt->N_multi || opt->n_multi) {
@@ -270,7 +281,8 @@ int bwa_cal_pac_pos_pe(dbset_t *dbs, int n_seqs, bwa_seq_t *seqs[2], saiset_t *s
 			if (p[j]->type == BWA_TYPE_UNIQUE || p[j]->type == BWA_TYPE_REPEAT) {
 				alignment_t *main_aln = &aln_buf[j][i]->a[main_idx];
 				int max_diff = gopt->fnr > 0.0? bwa_cal_maxdiff(p[j]->len, BWA_AVG_ERR, gopt->fnr) : gopt->max_diff;
-				p[j]->pos = bwtdb_sa2seq(main_aln->db, p[j]->strand, p[j]->sa, p[j]->len);
+				p[j]->pos = bwtdb_sa2seq(dbs->db[main_aln->dbidx], p[j]->strand, p[j]->sa, p[j]->len);
+				remap(p[j], dbs, main_aln->dbidx, opt->remapping);
 				p[j]->seQ = p[j]->mapQ = bwa_approx_mapQ(p[j], max_diff);
 			}
 		}
@@ -484,7 +496,7 @@ int bwa_sai2sam_pe(int argc, char *argv[])
 	if (optind + 5 > argc) {
 		fprintf(stderr, "\n");
 		fprintf(stderr, "Usage:   bwa sampe [options] <prefix> <in1.sai> <in2.sai> <in1.fq> <in2.fq> "
-		                "[<prefix2> <in2,1.sai> <in2,2.sai> <prefix3> ...]\n\n");
+						"[<prefix2> <in2,1.sai> <in2,2.sai> <prefix3> ...]\n\n");
 		fprintf(stderr, "Options: -a INT   maximum insert size [%d]\n", popt->max_isize);
 		fprintf(stderr, "         -o INT   maximum occurrences for one end [%d]\n", popt->max_occ);
 		fprintf(stderr, "         -n INT   maximum hits to output for paired reads [%d]\n", popt->n_multi);

@@ -50,6 +50,9 @@ typedef uint16_t bwa_cigar_t;
 
 typedef struct {
 	uint64_t pos;
+    uint64_t remapped_pos;
+    uint32_t dbidx; 
+    int32_t remapped_seqid;
 	uint32_t n_cigar:15, gap:8, mm:8, strand:1;
 	bwa_cigar_t *cigar;
 } bwt_multi1_t;
@@ -71,6 +74,8 @@ typedef struct {
 	bwtint_t sa;
 	uint64_t pos;
 	uint64_t remapped_pos;
+    uint32_t dbidx; 
+    int32_t remapped_seqid;
 	uint64_t c1:28, c2:28, seQ:8; // number of top1 and top2 hits; single-end mapQ
 	int n_cigar;
 	bwa_cigar_t *cigar;

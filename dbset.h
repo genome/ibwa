@@ -53,7 +53,7 @@ extern "C" {
     void dbset_load_ntpac(dbset_t *dbs);
     void dbset_unload_ntpac(dbset_t *dbs);
 
-    uint32_t dbset_extract_remapped(const dbset_t *dbs, seq_t **seqs, uint32_t primary, ubyte_t* ref_seq, uint64_t beg, uint32_t len);
+    uint32_t dbset_extract_remapped(const dbset_t *dbs, seq_t **seqs, uint32_t dbidx, int32_t seqid, ubyte_t* ref_seq, uint64_t beg, uint32_t len);
     uint32_t dbset_extract_sequence(const dbset_t *dbs, seq_t **seqs, ubyte_t* ref_seq, uint64_t beg, uint32_t len);
     int dbset_coor_pac2real(const dbset_t *dbs, int64_t pac_coor, int len, int32_t *real_seq, 
                             const bntseq_t **bns, uint64_t *offset);

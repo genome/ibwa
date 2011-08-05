@@ -1,5 +1,4 @@
 #include "bwasw.h"
-#include <unistd.h>
 #include <math.h>
 #include <stdlib.h>
 #include <time.h>
@@ -112,6 +111,37 @@ bwa_cigar_t *bwa_sw_core(const dbset_t *dbs, int len, const ubyte_t *seq, int64_
     return cigar;
 }
 
+static void set_right_coordinate(
+    int64_t *beg, int64_t *end,
+    bwa_seq_t *ref, bwa_seq_t *mate,
+    const isize_info_t *ii,
+    uint64_t l_pac
+    )
+{
+    *beg = (int64_t)ref->remapped_pos + ii->avg - 3*ii->std - mate->len*1.5;
+    *end = *beg + 6*ii->std + 2*mate->len;
+
+    if (*beg < (int64_t)ref->remapped_pos + ref->len)
+        *beg = ref->remapped_pos + ref->len;
+    if (*end > l_pac)
+        *end = l_pac;
+}
+
+static void set_left_coordinate(
+    int64_t *beg, int64_t *end,
+    bwa_seq_t *ref, bwa_seq_t *mate,
+    const isize_info_t *ii
+    )
+{
+    *beg = (int64_t)ref->pos + ref->len - ii->avg - 3*ii->std - mate->len*0.5;
+    *end = *beg + 6*ii->std + 2*mate->len;
+
+    if (*beg < 0)
+        *beg = 0;
+    if (*end > ref->remapped_pos)
+        *end = ref->remapped_pos;
+}
+
 static void bwa_paired_sw_thread(uint32_t idx, uint32_t size, void* data)
 {
     bwa_paired_sw_data_t *d = (bwa_paired_sw_data_t*)data;
@@ -138,20 +168,6 @@ static void bwa_paired_sw_thread(uint32_t idx, uint32_t size, void* data)
              * which must be aligned; _pmate points to its mate which is
              * considered to be modified. */
 
-#define __set_rght_coor(_a, _b, _pref, _pmate) do {                        \
-                (_a) = (int64_t)_pref->pos + ii->avg - 3 * ii->std - _pmate->len * 1.5; \
-                (_b) = (_a) + 6 * ii->std + 2 * _pmate->len;            \
-                if ((_a) < (int64_t)_pref->pos + _pref->len) (_a) = _pref->pos + _pref->len; \
-                if ((_b) > dbs->l_pac) (_b) = dbs->l_pac;                \
-            } while (0)
-
-#define __set_left_coor(_a, _b, _pref, _pmate) do {                        \
-                (_a) = (int64_t)_pref->pos + _pref->len - ii->avg - 3 * ii->std - _pmate->len * 0.5; \
-                (_b) = (_a) + 6 * ii->std + 2 * _pmate->len;            \
-                if ((_a) < 0) (_a) = 0;                                    \
-                if ((_b) > _pref->pos) (_b) = _pref->pos;                \
-            } while (0)
-            
 #define __set_fixed(_pref, _pmate, _beg, _cnt) do {                        \
                 _pmate->type = BWA_TYPE_MATESW;                            \
                 _pmate->pos = _beg;                                        \
@@ -175,22 +191,26 @@ static void bwa_paired_sw_thread(uint32_t idx, uint32_t size, void* data)
                 if (p[1-k]->type == BWA_TYPE_NO_MATCH) continue; // if p[1-k] is unmapped, skip
                 if (popt->type == BWA_PET_STD) {
                     if (p[1-k]->strand == 0) { // then the mate is on the reverse strand and has larger coordinate
-                        __set_rght_coor(beg[k], end[k], p[1-k], p[k]);
+                        set_right_coordinate(beg+k, end+k, p[1-k], p[k], ii, dbs->l_pac);
                         seq = p[k]->rseq;
                     } else { // then the mate is on forward stand and has smaller coordinate
-                        __set_left_coor(beg[k], end[k], p[1-k], p[k]);
+                        set_left_coordinate(beg+k, end+k, p[1-k], p[k], ii);
                         seq = p[k]->seq;
                         seq_reverse(p[k]->len, seq, 0); // because ->seq is reversed; this will reversed back shortly
                     }
                 } else { // BWA_PET_SOLID
                     if (p[1-k]->strand == 0) { // R3-F3 pairing
-                        if (k == 0) __set_left_coor(beg[k], end[k], p[1-k], p[k]); // p[k] is R3
-                        else __set_rght_coor(beg[k], end[k], p[1-k], p[k]); // p[k] is F3
+                        if (k == 0) 
+                            set_left_coordinate(beg+k, end+k, p[1-k], p[k], ii); // p[k] is R3
+                        else
+                            set_right_coordinate(beg+k, end+k, p[1-k], p[k], ii, dbs->l_pac); // p[k] is F3
                         seq = p[k]->rseq;
                         seq_reverse(p[k]->len, seq, 0); // because ->seq is reversed
                     } else { // F3-R3 pairing
-                        if (k == 0) __set_rght_coor(beg[k], end[k], p[1-k], p[k]); // p[k] is R3
-                        else __set_left_coor(beg[k], end[k], p[1-k], p[k]); // p[k] is F3
+                        if (k == 0)
+                            set_right_coordinate(beg+k, end+k, p[1-k], p[k], ii, dbs->l_pac); // p[k] is R3
+                        else
+                            set_left_coordinate(beg+k, end+k, p[1-k], p[k], ii); // p[k] is F3
                         seq = p[k]->seq;
                     }
                 }

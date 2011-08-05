@@ -18,6 +18,8 @@ typedef struct {
 	uint64_t pos;
     uint64_t remapped_pos;
 	uint32_t idx_and_end;
+    uint32_t dbidx;
+	int32_t remapped_seqid;
 } position_t;
 /* Find the alignment object given a position_t and array of alignments */
 #define __aln_end(x)    ((x).idx_and_end&1)
