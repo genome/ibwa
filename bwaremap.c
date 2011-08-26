@@ -34,18 +34,26 @@ int read_mapping_extract(const char *str, read_mapping_t *m) {
 
     beg = end+1;
     m->stop = strtoul(beg, &end, 10) + 1; /* stop = one past the last base */
-    if (end == beg || *end != '-')
+    if (end == beg || *end != '|')
         return 0;
 
     beg = end+1;
-    end = strchr(beg, '-');
-    if (beg == end || end == 0) {
-        m->cigar = strdup(beg);
-    } else {
-        m->cigar = malloc(end-beg+1);
-        strncpy(m->cigar, beg, end-beg);
-        m->cigar[end-beg]=0;
-    }
+    end = strchr(beg, '|');
+    m->cigar = malloc(end-beg+1);
+    strncpy(m->cigar, beg, end-beg);
+    m->cigar[end-beg]=0;
+
+    beg = end+1;
+    end = strchr(beg, '|');
+    m->var_start = strtoul(beg, &end, 10);
+    if (end == beg || *end != '|')
+        return 0;
+
+    beg = end+1;
+    end = strchr(beg, '|');
+    m->var_stop = strtoul(beg, &end, 10);
+    if (end == beg || *end != '|')
+        return 0;
 
     return 1;
 }

@@ -381,12 +381,16 @@ void bwa_sai2sam_pe_core(pe_inputs_t* inputs, pe_opt_t *popt)
 		fprintf(stderr, "[bwa_sai2sam_pe_core] print alignments... ");
 		for (i = 0; i < n_seqs; ++i) {
 			bwa_seq_t *p[2];
+			uint64_t tmp;
 			p[0] = seqs[0] + i; p[1] = seqs[1] + i;
 			if (p[0]->bc[0] || p[1]->bc[0]) {
 				strcat(p[0]->bc, p[1]->bc);
 				strcpy(p[1]->bc, p[0]->bc);
 			}
-
+			// use remapped coords for printing
+			tmp = p[0]->pos; p[0]->pos = p[0]->remapped_pos; p[0]->remapped_pos = tmp;
+			tmp = p[1]->pos; p[1]->pos = p[1]->remapped_pos; p[1]->remapped_pos = tmp;
+			
 			bwa_print_sam1(dbs, p[0], p[1], gopt->mode, gopt->max_top2);
 			bwa_print_sam1(dbs, p[1], p[0], gopt->mode, gopt->max_top2);
 		}

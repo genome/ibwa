@@ -516,6 +516,14 @@ void bwa_print_sam1(const dbset_t *dbs, bwa_seq_t *p, const bwa_seq_t *mate, int
 				}
 			}
 		}
+        if (p->pos != p->remapped_pos) {
+            int remapped_seqid;
+            nn = dbset_coor_pac2real(dbs, p->remapped_pos, j, &remapped_seqid, &bns, &bnsoffset);
+            printf("\tZR:Z:%s,%d", 
+                bns->anns[remapped_seqid].name,
+                (int)(p->remapped_pos - (bns->anns[remapped_seqid].offset + bnsoffset) + 1)
+                );
+        }
 		putchar('\n');
 	} else { // this read has no match
 		ubyte_t *s = p->strand? p->rseq : p->seq;
