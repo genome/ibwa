@@ -55,6 +55,7 @@ static inline position_t *select_mapping(const alngrp_t aln[2], const pos_arr_t 
     int i;
     position_t *best = &arr->a[begin];
 
+    *n_optimal = 0;
     for (i = begin+1; i <= end; ++i) {
         position_t *p = &arr->a[i];
         int this_score = __aln(*p, aln).aln.score;
@@ -97,7 +98,7 @@ static void pairing_aux(const pairing_param_t *param, pairing_internals_t *pint,
             pint->subo_n += pint->o_n;
             pint->o_n = n_optimal;
         } else {
-            pint->subo_n += n_optimal;
+            ++pint->subo_n;
         }
 
         if (s < pint->o_score) {
@@ -190,7 +191,7 @@ int find_optimal_pair(const pairing_param_t *param) {
         }
 */
     } else {
-        fprintf(stderr, "[paring] not implemented yet!\n");
+        fprintf(stderr, "[pairing] not implemented yet!\n");
         exit(1);
     }
     // set pairing
