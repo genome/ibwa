@@ -423,6 +423,7 @@ void bwa_print_sam1(const dbset_t *dbs, bwa_seq_t *p, const bwa_seq_t *mate, int
 
 		if (p->type == BWA_TYPE_NO_MATCH) {
 			p->pos = mate->pos;
+			p->remapped_pos = mate->remapped_pos;
 			p->strand = mate->strand;
 			flag |= SAM_FSU;
 			j = 1;

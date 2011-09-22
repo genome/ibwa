@@ -387,9 +387,15 @@ void bwa_sai2sam_pe_core(pe_inputs_t* inputs, pe_opt_t *popt)
 				strcat(p[0]->bc, p[1]->bc);
 				strcpy(p[1]->bc, p[0]->bc);
 			}
+
 			// use remapped coords for printing
-			tmp = p[0]->pos; p[0]->pos = p[0]->remapped_pos; p[0]->remapped_pos = tmp;
-			tmp = p[1]->pos; p[1]->pos = p[1]->remapped_pos; p[1]->remapped_pos = tmp;
+            if (popt->remapping) {
+                tmp = p[0]->pos; p[0]->pos = p[0]->remapped_pos; p[0]->remapped_pos = tmp;
+                tmp = p[1]->pos; p[1]->pos = p[1]->remapped_pos; p[1]->remapped_pos = tmp;
+            } else {
+                p[0]->remapped_pos = p[0]->pos;
+                p[1]->remapped_pos = p[1]->pos;
+            }
 			
 			bwa_print_sam1(dbs, p[0], p[1], gopt->mode, gopt->max_top2);
 			bwa_print_sam1(dbs, p[1], p[0], gopt->mode, gopt->max_top2);
