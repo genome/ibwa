@@ -5,13 +5,20 @@
 #include "bwt.h"
 #include "bwtaln.h"
 #include "bwtcache.h"
+#include "bwaremap.h"
 
 #include <stdint.h>
+
+typedef struct {
+    read_mapping_t map;
+    uint64_t target_tid_offset;
+} bnsremap_t;
 
 typedef struct {
     bntseq_t *bns;
     ubyte_t *data;
     int remap; /* set if the sequence is logically remapped onto another*/
+    bnsremap_t **mappings;
 } seq_t;
 
 typedef struct {
@@ -28,7 +35,6 @@ typedef struct {
     int color_space;
     int preload;
     bwtdb_t **db;
-    uint32_t **coord_map;
     seq_t **bns;
     seq_t **ntbns;
     uint64_t l_pac;

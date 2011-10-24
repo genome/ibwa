@@ -266,6 +266,15 @@ int bwa_fa2pac(int argc, char *argv[])
 	return 0;
 }
 
+int32_t bns_seq_by_name(const bntseq_t *bns, const char* name) {
+    int32_t i;
+    for (i = 0; i < bns->n_seqs; ++i) {
+        if (strcmp(name, bns->anns[i].name) == 0)
+            return i;
+    }
+    return -1;
+}
+
 int32_t bns_seq_for_pos(const bntseq_t *bns, int64_t pac_coor)
 {
 	int32_t left, mid, right;
@@ -286,7 +295,7 @@ int32_t bns_seq_for_pos(const bntseq_t *bns, int64_t pac_coor)
 
 int bns_coor_pac2real(const bntseq_t *bns, int64_t pac_coor, int len, int32_t *real_seq)
 {
-	int32_t left, mid, right, nn;
+	int32_t left, right, nn;
 	*real_seq = bns_seq_for_pos(bns, pac_coor);
 	// binary search for holes
 	left = 0; right = bns->n_holes; nn = 0;

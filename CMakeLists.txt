@@ -15,12 +15,12 @@ project(bwa)
 
 # Versioning ###############################################################
 set(UPSTREAM_VERSION 0.5.9)
-set(INTERNAL_VERSION_FULL  0.1.2)
-set(INTERNAL_VERSION_SHORT 0.1)
+set(INTERNAL_VERSION_FULL  0.3.0)
+set(INTERNAL_VERSION_SHORT 0.3)
 
 # use these to created a versioned copy of the bwa binary, e.g., bwa-0.5.9
-set(EXE_VERSION_SUFFIX "-${UPSTREAM_VERSION}-pem${INTERNAL_VERSION_SHORT}")
-set(BWA_EXECUTABLE_NAME bwa${EXE_VERSION_SUFFIX})
+set(EXE_VERSION_SUFFIX "-${UPSTREAM_VERSION}-${INTERNAL_VERSION_SHORT}")
+set(BWA_EXECUTABLE_NAME ibwa${EXE_VERSION_SUFFIX})
 
 # Compiler options and libraries ###########################################
 if (NOT CMAKE_BUILD_TYPE)

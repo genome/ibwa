@@ -15,6 +15,7 @@ int read_mapping_extract(const char *str, read_mapping_t *m) {
     const char *beg;
     char *end;
 
+    m->exact = 0;
     if (!can_remap(str))
         return 0;
 
@@ -27,6 +28,17 @@ int read_mapping_extract(const char *str, read_mapping_t *m) {
     strncpy(m->seqname, beg, end-beg);
     m->seqname[end-beg]=0;
     beg = end+1;
+
+    if (strncmp("exact", beg, 5) == 0) {
+        m->exact = 1;
+        m->start = 0;
+        m->stop = 0;
+        m->cigar = 0;
+        m->var_start = 0;
+        m->var_stop = 0;
+        return 1;
+    }
+
 
     m->start = strtoul(beg, &end, 10);
     if (end == beg || *end != '|')
@@ -60,7 +72,8 @@ int read_mapping_extract(const char *str, read_mapping_t *m) {
 
 void read_mapping_destroy(read_mapping_t *m) {
     free(m->seqname);
-    free(m->cigar);
+    if (m->cigar)
+        free(m->cigar);
 }
 
 int remap_read_coordinates(const read_mapping_t *m, uint32_t *remapped, uint32_t len) {
@@ -68,6 +81,12 @@ int remap_read_coordinates(const read_mapping_t *m, uint32_t *remapped, uint32_t
     uint32_t pos = m->start;
     const char* cigar = m->cigar;
     uint32_t *cur = remapped;
+
+    if (m->exact) {
+        for (i = 0; i < len; ++i)
+            *cur++ = pos++;
+        return 1;
+    }
 
     while (*cigar) {
         char* end;
@@ -111,15 +130,16 @@ int remap_read_coordinates(const read_mapping_t *m, uint32_t *remapped, uint32_t
     return 1;
 }
 
-uint32_t bwa_remap_position(const bntseq_t* bns, uint64_t pac_coor, int32_t* seqid) {
+uint64_t bwa_remap_position(const bntseq_t* bns, const bntseq_t* tgtbns, uint64_t pac_coor, int32_t* seqid) {
     *seqid = bns_seq_for_pos(bns, pac_coor);
-    return bwa_remap_position_with_seqid(bns, pac_coor, *seqid); 
+    return bwa_remap_position_with_seqid(bns, tgtbns, pac_coor, *seqid); 
 }
 
 /* looking up the seqid is expensive. bwa_remap_position allows the value to be stored and then
  * ..._with_seqid can be used later. */
-uint32_t bwa_remap_position_with_seqid(const bntseq_t* bns, uint64_t pac_coor, int32_t seqid) {
+uint64_t bwa_remap_position_with_seqid(const bntseq_t* bns, const bntseq_t* tgtbns, uint64_t pac_coor, int32_t seqid) {
     uint32_t rv = 0;
+    int32_t target_idx = 0;
     read_mapping_t m;
     uint32_t *map = calloc(bns->anns[seqid].len, sizeof(uint32_t));
     if (!read_mapping_extract(bns->anns[seqid].name, &m))
@@ -128,13 +148,17 @@ uint32_t bwa_remap_position_with_seqid(const bntseq_t* bns, uint64_t pac_coor, i
     if (!remap_read_coordinates(&m, map, bns->anns[seqid].len))
         err_fatal(__func__, "Failed to remap coordinates");
 
+    target_idx = bns_seq_by_name(tgtbns, m.seqname);
+    if (target_idx < 0)
+        err_fatal(__func__, "Failed to locate remapping target: %s\n", m.seqname);
+
     rv = map[pac_coor - bns->anns[seqid].offset];
     free(map);
     read_mapping_destroy(&m);
     if (rv < m.start || rv > m.stop)
         err_fatal(__func__, "remapped position out of range (%u should be in [%u, %u])\n", rv, m.start, m.stop);
 
-    return rv;
+    return rv + tgtbns->anns[target_idx].offset;
 }
 
 uint32_t *bwa_remap_bns(const bntseq_t* bns) {

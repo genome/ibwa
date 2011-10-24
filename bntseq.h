@@ -67,6 +67,7 @@ extern unsigned char nst_nt4_table[256];
 extern "C" {
 #endif
 
+    int32_t bns_seq_by_name(const bntseq_t *bns, const char* name);
 	int32_t bns_seq_for_pos(const bntseq_t *bns, int64_t pac_coor);
 	void bns_dump(const bntseq_t *bns, const char *prefix);
 	bntseq_t *bns_restore(const char *prefix);

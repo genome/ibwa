@@ -133,7 +133,7 @@ static void set_left_coordinate(
     const isize_info_t *ii
     )
 {
-    *beg = (int64_t)ref->pos + ref->len - ii->avg - 3*ii->std - mate->len*0.5;
+    *beg = (int64_t)ref->remapped_pos + ref->len - ii->avg - 3*ii->std - mate->len*0.5;
     *end = *beg + 6*ii->std + 2*mate->len;
 
     if (*beg < 0)
@@ -171,6 +171,7 @@ static void bwa_paired_sw_thread(uint32_t idx, uint32_t size, void* data)
 #define __set_fixed(_pref, _pmate, _beg, _cnt) do {                        \
                 _pmate->type = BWA_TYPE_MATESW;                            \
                 _pmate->pos = _beg;                                        \
+                _pmate->remapped_pos = _beg;                                        \
                 _pmate->seQ = _pref->seQ;                                \
                 _pmate->strand = (popt->type == BWA_PET_STD)? 1 - _pref->strand : _pref->strand; \
                 _pmate->n_mm = _cnt>>16; _pmate->n_gapo = _cnt>>8&0xff; _pmate->n_gape = _cnt&0xff; \

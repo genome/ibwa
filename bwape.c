@@ -154,7 +154,7 @@ static int infer_isize(int n_seqs, bwa_seq_t *seqs[2], isize_info_t *ii, double 
 	return 0;
 }
 
-static uint32_t __remap(const uint32_t pos, const bwtdb_t *db, int32_t *seqid) {
+static uint32_t __remap(const uint64_t pos, const bwtdb_t *db, const bwtdb_t *target, int32_t *seqid) {
 	uint32_t x;
 
 	if (!db->bns->remap) {/* not all sequences need remapping */
@@ -163,14 +163,17 @@ static uint32_t __remap(const uint32_t pos, const bwtdb_t *db, int32_t *seqid) {
 	}
 
 	/* get the position relative to the particular sequence it is from */
-	x = bwa_remap_position(db->bns->bns, pos - db->offset, seqid);
+	x = bwa_remap_position(db->bns->bns, target->bns->bns, pos - db->offset, seqid);
 	return x;
 }
+/* TODO: currently, the remapped dbidx is hard coded as 0, might want to change that in the future
+ * to allow remappings to things other than the primary sequence */
 #define remap(p, dbs, _dbidx, opt_remap) do { \
-		const bwtdb_t *db = dbs->db[(_dbidx)]; \
+		const bwtdb_t *db = (dbs)->db[(_dbidx)]; \
 		(p)->dbidx = (_dbidx); \
+		(p)->remapped_dbidx = 0; \
 		if ((opt_remap)) { \
-			(p)->remapped_pos = __remap((p)->pos, (db), &(p)->remapped_seqid); \
+			(p)->remapped_pos = __remap((p)->pos, db, (dbs)->db[0], &(p)->remapped_seqid); \
 		} else { \
 			(p)->remapped_pos = (p)->pos; \
 			(p)->remapped_seqid = -1; \
@@ -463,7 +466,7 @@ static void dump_pe_inputs(const pe_inputs_t *inputs)
 {
 	int i;
 	fprintf(stderr, "[%s]: %d sets\n", __func__, inputs->count);
-	fprintf(stderr, " - fastq files: %s, %s\n", inputs->fq[0], inputs->fq[1]);
+	fprintf(stderr, " - unaligned read files: %s, %s\n", inputs->fq[0], inputs->fq[1]);
 	for (i = 0; i < inputs->count; ++i) {
 		fprintf(stderr, " - ref: %s, sai pair: <%s> <%s>\n",
 			inputs->prefixes.a[i],

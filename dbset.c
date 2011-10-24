@@ -103,10 +103,41 @@ static void seq_unload_pac(seq_t *s) {
 }
 
 static void seq_destroy(seq_t *s) {
+    int i;
     if (!s) return;
     seq_unload_pac(s);
+
+    if (s->mappings) {
+        for (i = 0; i < s->bns->n_seqs; ++i) {
+            if (s->mappings[i]) {
+                read_mapping_destroy(&s->mappings[i]->map);
+                free(s->mappings[i]);
+            }
+        }
+        free(s->mappings);
+    }
+
     if (s->bns) bns_destroy(s->bns);
     free(s);
+}
+
+static void init_remap(dbset_t* dbs) {
+    int i,j;
+    for (i = 0; i < dbs->count; ++i) {
+        seq_t* bns = dbs->bns[i];
+        if (!bns->remap)
+            continue;
+        bns->mappings = calloc(bns->bns->n_seqs, sizeof(bnsremap_t*));
+        for (j = 0; j < bns->bns->n_seqs; ++j) {
+            const char* seqname = bns->bns->anns[j].name;
+            if (can_remap(seqname)) {
+                bns->mappings[j] = calloc(1, sizeof(bnsremap_t));
+                if (!read_mapping_extract(seqname, &bns->mappings[j]->map)) {
+                    err_fatal(__func__, "Failed to remap sequence id %s\n", seqname);
+                }
+            }
+        }
+    }
 }
 
 dbset_t *dbset_restore(int count, const char **prefixes, int mode, int preload) {
@@ -114,7 +145,6 @@ dbset_t *dbset_restore(int count, const char **prefixes, int mode, int preload) 
     dbset_t *dbs = calloc(1, sizeof(dbset_t));
     dbs->count = count;
     dbs->db = (bwtdb_t**)calloc(count, sizeof(bwtdb_t*));
-    dbs->coord_map = calloc(count, sizeof(uint32_t*));
     dbs->bns = calloc(count, sizeof(seq_t*));
     dbs->ntbns = calloc(count, sizeof(seq_t*));
     dbs->preload = preload;
@@ -147,6 +177,8 @@ dbset_t *dbset_restore(int count, const char **prefixes, int mode, int preload) 
         }
     }
 
+    init_remap(dbs);
+
     return dbs;
 }
 
@@ -156,11 +188,8 @@ void dbset_destroy(dbset_t *dbs) {
         bwtdb_destroy(dbs->db[i]);
         seq_destroy(dbs->bns[i]);
         seq_destroy(dbs->ntbns[i]);
-        if (dbs->coord_map[i])
-            free(dbs->coord_map[i]);
     }
     free(dbs->db);
-    free(dbs->coord_map);
     free(dbs->bns);
     free(dbs->ntbns);
     free(dbs);
@@ -253,7 +282,7 @@ uint32_t dbset_extract_remapped(const dbset_t *dbs, seq_t **seqs, uint32_t dbidx
     seq_begin = db->offset + ann->offset;
 
     if (beg < seq_begin) {
-        uint64_t remapped_begin = bwa_remap_position_with_seqid(db->bns->bns, ann->offset, seqid);
+        uint64_t remapped_begin = bwa_remap_position_with_seqid(db->bns->bns, dbs->db[0]->bns->bns, ann->offset, seqid);
         uint64_t sublen = seq_begin - beg;
         uint64_t offset = remapped_begin - sublen;
         if (sublen > remapped_begin)
@@ -269,7 +298,7 @@ uint32_t dbset_extract_remapped(const dbset_t *dbs, seq_t **seqs, uint32_t dbidx
     }
 
     if (total < len) {
-        uint64_t remapped_end = bwa_remap_position_with_seqid(db->bns->bns, ann->offset + ann->len-1, seqid)+1;
+        uint64_t remapped_end = bwa_remap_position_with_seqid(db->bns->bns, dbs->db[0]->bns->bns, ann->offset + ann->len-1, seqid)+1;
         total += dbset_extract_sequence(dbs, seqs, &ref_seq[total], remapped_end, len-total);
     }
 
