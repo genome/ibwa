@@ -282,7 +282,7 @@ uint32_t dbset_extract_remapped(const dbset_t *dbs, seq_t **seqs, uint32_t dbidx
     seq_begin = db->offset + ann->offset;
 
     if (beg < seq_begin) {
-        uint64_t remapped_begin = bwa_remap_position_with_seqid(db->bns->bns, dbs->db[0]->bns->bns, ann->offset, seqid);
+        uint64_t remapped_begin = bwa_remap_position_with_seqid(db->bns, dbs->db[0]->bns->bns, ann->offset, seqid);
         uint64_t sublen = seq_begin - beg;
         uint64_t offset = remapped_begin - sublen;
         if (sublen > remapped_begin)
@@ -298,7 +298,7 @@ uint32_t dbset_extract_remapped(const dbset_t *dbs, seq_t **seqs, uint32_t dbidx
     }
 
     if (total < len) {
-        uint64_t remapped_end = bwa_remap_position_with_seqid(db->bns->bns, dbs->db[0]->bns->bns, ann->offset + ann->len-1, seqid)+1;
+        uint64_t remapped_end = bwa_remap_position_with_seqid(db->bns, dbs->db[0]->bns->bns, ann->offset + ann->len-1, seqid)+1;
         total += dbset_extract_sequence(dbs, seqs, &ref_seq[total], remapped_end, len-total);
     }
 

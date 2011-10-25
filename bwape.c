@@ -163,7 +163,7 @@ static uint32_t __remap(const uint64_t pos, const bwtdb_t *db, const bwtdb_t *ta
 	}
 
 	/* get the position relative to the particular sequence it is from */
-	x = bwa_remap_position(db->bns->bns, target->bns->bns, pos - db->offset, seqid);
+	x = bwa_remap_position(db->bns, target->bns->bns, pos - db->offset, seqid);
 	return x;
 }
 /* TODO: currently, the remapped dbidx is hard coded as 0, might want to change that in the future

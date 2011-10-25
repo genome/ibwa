@@ -10,18 +10,6 @@
 #include <stdint.h>
 
 typedef struct {
-    read_mapping_t map;
-    uint64_t target_tid_offset;
-} bnsremap_t;
-
-typedef struct {
-    bntseq_t *bns;
-    ubyte_t *data;
-    int remap; /* set if the sequence is logically remapped onto another*/
-    bnsremap_t **mappings;
-} seq_t;
-
-typedef struct {
     const char *prefix;
     bwt_t *bwt[2]; 
     bwtcache_t *bwtcache;

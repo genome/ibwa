@@ -671,54 +671,6 @@ void bwa_sai2sam_se_core(const char *prefix, const char *fn_sa, const char *fn_f
 	free(aln);
 }
 
-static se_inputs_t *se_inputs_parse(int argc, char *argv[])
-{
-	se_inputs_t *inputs = calloc(1, sizeof(se_inputs_t));
-	int i;
-	inputs->count = 0;
-
-	if (argc < 2) {
-		fprintf(stderr, "not enough arguments!\n");
-		exit(1);
-	}
-
-	inputs->fq = argv[0];
-
-	i = 1;
-	while (i < argc)
-	{
-		if (argc - i < 3) {
-			fprintf(stderr, "[%s] insufficient arguments\n", __func__);
-			exit(1);
-		}
-
-		kv_push(const char*, inputs->prefixes, argv[i++]);
-		kv_push(const char*, inputs->sai, argv[i++]);
-		++inputs->count;
-	}
-
-	return inputs;
-}
-
-static void se_inputs_destroy(se_inputs_t *inputs)
-{
-	kv_destroy(inputs->prefixes);
-	kv_destroy(inputs->sai);
-	free(inputs);
-}
-
-static void dump_se_inputs(const se_inputs_t *inputs)
-{
-	int i;
-	fprintf(stderr, "[%s]: %d sets\n", __func__, inputs->count);
-	fprintf(stderr, " - fastq file: %s\n", inputs->fq);
-	for (i = 0; i < inputs->count; ++i) {
-		fprintf(stderr, " - ref: %s sai: <%s>\n",
-			inputs->prefixes.a[i],
-			inputs->sai.a[i]);
-	}
-}
-
 int bwa_sai2sam_se(int argc, char *argv[])
 {
 	int c, n_occ = 3;
