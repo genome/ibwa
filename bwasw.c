@@ -172,6 +172,8 @@ static void bwa_paired_sw_thread(uint32_t idx, uint32_t size, void* data)
                 _pmate->type = BWA_TYPE_MATESW;                            \
                 _pmate->pos = _beg;                                        \
                 _pmate->remapped_pos = _beg;                                        \
+                _pmate->dbidx = 0;                                        \
+                _pmate->remapped_dbidx = 0;                                        \
                 _pmate->seQ = _pref->seQ;                                \
                 _pmate->strand = (popt->type == BWA_PET_STD)? 1 - _pref->strand : _pref->strand; \
                 _pmate->n_mm = _cnt>>16; _pmate->n_gapo = _cnt>>8&0xff; _pmate->n_gape = _cnt&0xff; \

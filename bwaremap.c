@@ -141,20 +141,26 @@ uint64_t bwa_remap_position_with_seqid(const seq_t* bns, const bntseq_t* tgtbns,
     uint32_t rv = 0;
     int32_t target_idx = 0;
     const read_mapping_t *m = &bns->mappings[seqid]->map;
-    uint32_t *map = calloc(bns->bns->anns[seqid].len, sizeof(uint32_t));
     if (!m)
         err_fatal(__func__, "No read mapping for sequence id %d\n", seqid);
-
-    if (!remap_read_coordinates(m, map, bns->bns->anns[seqid].len))
-        err_fatal(__func__, "Failed to remap coordinates");
 
     target_idx = bns_seq_by_name(tgtbns, m->seqname);
     if (target_idx < 0)
         err_fatal(__func__, "Failed to locate remapping target: %s\n", m->seqname);
 
-    rv = map[pac_coor - bns->bns->anns[seqid].offset];
-    free(map);
-    if (rv < m->start || rv > m->stop)
+    /* TODO: get rid of remap_read_coordinates using an array! */
+    if (!m->exact) {
+        uint32_t *map = calloc(bns->bns->anns[seqid].len, sizeof(uint32_t));
+        if (!remap_read_coordinates(m, map, bns->bns->anns[seqid].len))
+            err_fatal(__func__, "Failed to remap coordinates");
+
+        rv = map[pac_coor - bns->bns->anns[seqid].offset];
+        free(map);
+    } else {
+        rv = pac_coor - bns->bns->anns[seqid].offset;
+    }
+
+    if (!m->exact && (rv < m->start || rv > m->stop))
         err_fatal(__func__, "remapped position out of range (%u should be in [%u, %u])\n", rv, m->start, m->stop);
 
     return rv + tgtbns->anns[target_idx].offset;

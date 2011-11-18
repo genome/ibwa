@@ -17,7 +17,7 @@ typedef enum {
 
 typedef struct {
     uint64_t n;
-    bwtint_t *a;
+    uint64_t *a;
 } poslist_t;
 
 typedef struct {

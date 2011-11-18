@@ -154,8 +154,8 @@ static int infer_isize(int n_seqs, bwa_seq_t *seqs[2], isize_info_t *ii, double 
 	return 0;
 }
 
-static uint32_t __remap(const uint64_t pos, const bwtdb_t *db, const bwtdb_t *target, int32_t *seqid) {
-	uint32_t x;
+static uint64_t __remap(const uint64_t pos, const bwtdb_t *db, const bwtdb_t *target, int32_t *seqid) {
+	uint64_t x;
 
 	if (!db->bns->remap) {/* not all sequences need remapping */
 		*seqid = -1;
@@ -206,7 +206,6 @@ static void bwa_cal_pac_pos_pe_thread(uint32_t idx, uint32_t size, void *data)
 		if ((p[0]->type == BWA_TYPE_UNIQUE || p[0]->type == BWA_TYPE_REPEAT)
 			&& (p[1]->type == BWA_TYPE_UNIQUE || p[1]->type == BWA_TYPE_REPEAT))
 		{ // only when both ends mapped
-			position_t alnpos;
 			int j, k, n_occ[2];
 			for (j = 0; j < 2; ++j) {
 				n_occ[j] = 0;
@@ -223,6 +222,7 @@ static void bwa_cal_pac_pos_pe_thread(uint32_t idx, uint32_t size, void *data)
 						/* TODO: cache remappings */
 						poslist_t pos = bwtdb_cached_sa2seq(dbs->db[ar->dbidx], &ar->aln, p[j]->len);
 						for (l = 0; l < pos.n; ++l) {
+							position_t alnpos = {0};
 							alnpos.pos = pos.a[l];
 							remap(&alnpos, dbs, ar->dbidx, opt->remapping);
 							alnpos.idx_and_end = k<<1 | j;
@@ -230,6 +230,7 @@ static void bwa_cal_pac_pos_pe_thread(uint32_t idx, uint32_t size, void *data)
 						}
 					} else { // then calculate on the fly
 						for (l = ar->aln.k; l <= ar->aln.l; ++l) {
+							position_t alnpos = {0};
 							alnpos.pos = bwtdb_sa2seq(dbs->db[ar->dbidx], ar->aln.a, l, p[j]->len);
 							remap(&alnpos, dbs, ar->dbidx, opt->remapping);
 							alnpos.idx_and_end = k<<1 | j;
@@ -376,8 +377,13 @@ void bwa_sai2sam_pe_core(pe_inputs_t* inputs, pe_opt_t *popt)
 		fprintf(stderr, "[bwa_sai2sam_pe_core] time elapses: %.2f sec\n", (float)(clock() - t) / CLOCKS_PER_SEC); t = clock();
 
 		fprintf(stderr, "[bwa_sai2sam_pe_core] refine gapped alignments... ");
-		for (j = 0; j < 2; ++j)
+		for (j = 0; j < 2; ++j) {
 			bwa_refine_gapped(dbs, n_seqs, seqs[j]);
+            /* refine_gapped changes pos, so we might need to update remapped_pos */
+            for (i = 0; i < n_seqs; ++i) {
+				remap(&seqs[j][i], dbs, seqs[j][i].dbidx, popt->remapping);
+            }
+        }
 
 		fprintf(stderr, "%.2f sec\n", (float)(clock() - t) / CLOCKS_PER_SEC); t = clock();
 
@@ -392,13 +398,13 @@ void bwa_sai2sam_pe_core(pe_inputs_t* inputs, pe_opt_t *popt)
 			}
 
 			// use remapped coords for printing
-            if (popt->remapping) {
-                tmp = p[0]->pos; p[0]->pos = p[0]->remapped_pos; p[0]->remapped_pos = tmp;
-                tmp = p[1]->pos; p[1]->pos = p[1]->remapped_pos; p[1]->remapped_pos = tmp;
-            } else {
-                p[0]->remapped_pos = p[0]->pos;
-                p[1]->remapped_pos = p[1]->pos;
-            }
+			if (popt->remapping) {
+				tmp = p[0]->pos; p[0]->pos = p[0]->remapped_pos; p[0]->remapped_pos = tmp;
+				tmp = p[1]->pos; p[1]->pos = p[1]->remapped_pos; p[1]->remapped_pos = tmp;
+			} else {
+				p[0]->remapped_pos = p[0]->pos;
+				p[1]->remapped_pos = p[1]->pos;
+			}
 			
 			bwa_print_sam1(dbs, p[0], p[1], gopt->mode, gopt->max_top2);
 			bwa_print_sam1(dbs, p[1], p[0], gopt->mode, gopt->max_top2);

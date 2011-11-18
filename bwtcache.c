@@ -47,9 +47,9 @@ poslist_t bwt_cached_sa(uint64_t offset, bwtcache_t *c, const bwt_t * const bwt[
     itm = bwtcache_get(c, key);
     if (itm.state == eUNINITIALIZED) {
         itm.pos.n = a->l - a->k + 1;
-        itm.pos.a = (bwtint_t*)malloc(sizeof(bwtint_t) * itm.pos.n);
+        itm.pos.a = (uint64_t*)malloc(sizeof(uint64_t) * itm.pos.n);
         for (l = a->k; l <= a->l; ++l)
-            itm.pos.a[l - a->k] = offset + a->a? bwt_sa(bwt[0], l) : bwt[1]->seq_len - (bwt_sa(bwt[1], l) + seqlen);
+            itm.pos.a[l - a->k] = offset + (a->a? bwt_sa(bwt[0], l) : bwt[1]->seq_len - (bwt_sa(bwt[1], l) + seqlen));
         bwtcache_put(c, key, &itm);
     } else if (itm.state == eLOADING) {
         return bwtcache_wait(c, key).pos;

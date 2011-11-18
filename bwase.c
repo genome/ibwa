@@ -216,7 +216,7 @@ static bwa_cigar_t *refine_gapped_core(dbset_t *dbs, seq_t **bns, uint32_t dbidx
 	if (__cigar_op(cigar[*n_cigar-1]) == FROM_I) cigar[*n_cigar-1] = __cigar_create(3, (__cigar_len(cigar[*n_cigar-1])));
 	if (__cigar_op(cigar[0]) == FROM_I) cigar[0] = __cigar_create(3, (__cigar_len(cigar[0])));
 
-	*_pos = (bwtint_t)__pos;
+	*_pos = __pos;
 	free(ref_seq); free(path);
 	return cigar;
 }
