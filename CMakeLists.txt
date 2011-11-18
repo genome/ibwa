@@ -15,7 +15,7 @@ project(bwa)
 
 # Versioning ###############################################################
 set(UPSTREAM_VERSION 0.5.9)
-set(INTERNAL_VERSION_FULL  0.3.0)
+set(INTERNAL_VERSION_FULL  0.3.1)
 set(INTERNAL_VERSION_SHORT 0.3)
 
 # use these to created a versioned copy of the bwa binary, e.g., bwa-0.5.9
