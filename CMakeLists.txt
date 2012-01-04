@@ -15,7 +15,7 @@ project(bwa)
 
 # Versioning ###############################################################
 set(UPSTREAM_VERSION 0.5.9)
-set(INTERNAL_VERSION_FULL  0.3.1)
+set(INTERNAL_VERSION_FULL  0.3.2)
 set(INTERNAL_VERSION_SHORT 0.3)
 
 # use these to created a versioned copy of the bwa binary, e.g., bwa-0.5.9
@@ -37,6 +37,10 @@ endif ()
 
 if (CMAKE_COMPILER_IS_GNUCC)
     set(CMAKE_C_FLAGS "-Wall")
+endif ()
+
+if (CMAKE_COMPILER_IS_GNUCXX)
+    set(CMAKE_CXX_FLAGS "-Wall -std=c++0x")
 endif ()
 
 find_package(ZLIB REQUIRED)
@@ -64,6 +68,7 @@ set(LIB_SOURCES
     bwapair.c bwapair.h
     bwasw.c bwasw.h
     bwaremap.c bwaremap.h
+    filter_alignments.cpp filter_alignments.h
 )
 set(MAIN_SOURCES main.c main.h)
 

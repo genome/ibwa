@@ -1,7 +1,10 @@
 #include "bwapair.h"
 
+#include "khash.h"
 #include "ksort.h"
 #include <math.h>
+
+KHASH_SET_INIT_INT64(pos_seen_set)
 
 typedef struct {
     int o_n;
@@ -17,6 +20,11 @@ typedef struct {
 extern int g_log_n[256]; // in bwase.c
 
 static int position_lt(const position_t a, const position_t b) {
+    /* if 2 alignments map to the same spot, order by absolute position.
+     * this means real (not remapped) alignments always come first */
+    if (a.remapped_pos == b.remapped_pos)
+        return a.pos < b.pos;
+
     return a.remapped_pos < b.remapped_pos;
 }
 KSORT_INIT(position, position_t, position_lt);
@@ -52,23 +60,38 @@ static inline int mappings_overlap(const position_t *a, const position_t* b, con
 }
 
 static inline position_t *select_mapping(const alngrp_t aln[2], const pos_arr_t *arr, int begin, int end, int *n_optimal) {
-    int i;
     position_t *best = &arr->a[begin];
+    kh_pos_seen_set_t *seen = kh_init(pos_seen_set);
+    int i;
+    int inserted;
 
-    *n_optimal = 0;
+    *n_optimal = 1;
+    if (arr->a[0].pos == arr->a[0].remapped_pos)
+        kh_put(pos_seen_set, seen, arr->a[0].pos, &inserted);
     for (i = begin+1; i <= end; ++i) {
         position_t *p = &arr->a[i];
         int this_score = __aln(*p, aln).aln.score;
         int best_score = __aln(*best, aln).aln.score;
+        if (arr->a[i].pos == arr->a[i].remapped_pos) {
+            kh_put(pos_seen_set, seen, p->pos, &inserted);
+        } else {
+            khint_t iter = kh_get(pos_seen_set, seen, p->remapped_pos);
+            if (iter != kh_end(seen) && p->remap_identical) {
+                // fprintf(stderr, "Ignoring identical remapping at %lu\n", p->pos);
+                continue;
+            }
+        }
+
         if (__aln(*p, aln).aln.score < __aln(*best, aln).aln.score) {
-            *n_optimal = 1;
+            // *n_optimal = 1;
             best = p;
         } else if (this_score == best_score) {
-            ++(*n_optimal);
+            // ++(*n_optimal);
             /* randomly pick one here? */
         }
     }
 
+    kh_destroy(pos_seen_set, seen);
     return best;
 }
 
@@ -128,6 +151,9 @@ static void pairing_aux2(const pairing_param_t *param, pairing_internals_t *pint
     }
 }
 
+// TODO: we cannot rely on the value of p[x]->mapQ in this function as it is
+// set without knowledge of remappings. we should instead recompute c1 and c2
+// for p here (or immediately before calling here) and recompute the SE mapQ.
 int find_optimal_pair(const pairing_param_t *param) {
     bwa_seq_t **p = param->p;
     const pos_arr_t *arr = param->arr;
@@ -162,9 +188,7 @@ int find_optimal_pair(const pairing_param_t *param) {
                 if (k > i) {
                     pos = select_mapping(aln, arr, i, k, &n_optimal);
                     i = k;
-                } else ++i;
-            } else {
-                ++i;
+                }
             }
 
             if (strand == 1) { // reverse strand, then check
@@ -175,6 +199,7 @@ int find_optimal_pair(const pairing_param_t *param) {
                 pint.last_pos[pos->idx_and_end&1][0] = pint.last_pos[pos->idx_and_end&1][1];
                 pint.last_pos[pos->idx_and_end&1][1] = *pos;
             }
+            ++i;
         }
 /*
     } else if (opt->type == BWA_PET_SOLID) {
@@ -212,8 +237,8 @@ int find_optimal_pair(const pairing_param_t *param) {
         }
         rr[0] = __aln(pint.o_pos[0], aln).aln.a;
         rr[1] = __aln(pint.o_pos[1], aln).aln.a;
-        if ((p[0]->pos == pint.o_pos[0].pos && p[0]->strand == rr[0]) &&
-            (p[1]->pos == pint.o_pos[1].pos && p[1]->strand == rr[1]))
+        if ((p[0]->remapped_pos == pint.o_pos[0].remapped_pos && p[0]->strand == rr[0]) &&
+            (p[1]->remapped_pos == pint.o_pos[1].remapped_pos && p[1]->strand == rr[1]))
         { // both ends not moved
             if (p[0]->mapQ > 0 && p[1]->mapQ > 0) {
                 int mapQ = p[0]->mapQ + p[1]->mapQ;
@@ -225,10 +250,10 @@ int find_optimal_pair(const pairing_param_t *param) {
                 if (p[1]->mapQ == 0)
                     p[1]->mapQ = (mapQ_p + 7 < p[0]->mapQ)? mapQ_p + 7 : p[0]->mapQ;
             }
-        } else if (p[0]->pos == pint.o_pos[0].pos && p[0]->strand == rr[0]) { // [1] moved
+        } else if (p[0]->remapped_pos == pint.o_pos[0].remapped_pos && p[0]->strand == rr[0]) { // [1] moved
             p[1]->seQ = 0; p[1]->mapQ = p[0]->mapQ;
             if (p[1]->mapQ > mapQ_p) p[1]->mapQ = mapQ_p;
-        } else if (p[1]->pos == pint.o_pos[1].pos && p[1]->strand == rr[1]) { // [0] moved
+        } else if (p[1]->remapped_pos == pint.o_pos[1].remapped_pos && p[1]->strand == rr[1]) { // [0] moved
             p[0]->seQ = 0; p[0]->mapQ = p[1]->mapQ;
             if (p[0]->mapQ > mapQ_p) p[0]->mapQ = mapQ_p;
         } else { // both ends moved

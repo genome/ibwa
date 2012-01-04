@@ -5,10 +5,6 @@
 #include "dbset.h"
 #include "kvec.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 typedef struct {
 	double avg, std, ap_prior;
 	bwtint_t low, high, high_bayesian;
@@ -21,7 +17,12 @@ typedef struct {
     uint32_t dbidx;
     uint32_t remapped_dbidx;
 	int32_t remapped_seqid;
+    int32_t remap_identical;
+    int32_t n_gapo, n_gape;
+    int32_t len;
+    int score;
 } position_t;
+
 /* Find the alignment object given a position_t and array of alignments */
 #define __aln_end(x)    ((x).idx_and_end&1)
 #define __aln_idx(x)    ((x).idx_and_end>>1)
@@ -37,6 +38,10 @@ typedef struct {
     int s_mm;
     const isize_info_t *ii;
 } pairing_param_t;
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 int find_optimal_pair(const pairing_param_t *p);
 

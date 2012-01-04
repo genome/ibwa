@@ -4,18 +4,22 @@
 #include <time.h>
 #include <stdio.h>
 #include <string.h>
-#include "bwtaln.h"
-#include "kvec.h"
 #include "bntseq.h"
-#include "utils.h"
-#include "stdaln.h"
+#include "bwapair.h"
+#include "bwaremap.h"
+#include "bwasw.h"
+#include "bwtaln.h"
 #include "bwtcache.h"
 #include "dbset.h"
+#include "khash.h"
+#include "kvec.h"
 #include "saiset.h"
-#include "bwaremap.h"
-#include "bwapair.h"
-#include "bwasw.h"
+#include "stdaln.h"
 #include "threadblock.h"
+#include "utils.h"
+#include "filter_alignments.h"
+
+KHASH_MAP_INIT_INT64(64, bwtcache_itm_t)
 
 typedef struct {
 	int count;
@@ -154,8 +158,10 @@ static int infer_isize(int n_seqs, bwa_seq_t *seqs[2], isize_info_t *ii, double 
 	return 0;
 }
 
-static uint64_t __remap(const uint64_t pos, const bwtdb_t *db, const bwtdb_t *target, int32_t *seqid) {
+static uint64_t __remap(const uint64_t pos, uint64_t len, uint32_t gap, const bwtdb_t *db, const bwtdb_t *target, int32_t *seqid, int *identical) {
 	uint64_t x;
+    const read_mapping_t *m;
+    uint64_t relpos = pos;
 
 	if (!db->bns->remap) {/* not all sequences need remapping */
 		*seqid = -1;
@@ -164,16 +170,23 @@ static uint64_t __remap(const uint64_t pos, const bwtdb_t *db, const bwtdb_t *ta
 
 	/* get the position relative to the particular sequence it is from */
 	x = bwa_remap_position(db->bns, target->bns->bns, pos - db->offset, seqid);
+    m = &db->bns->mappings[*seqid]->map;
+    relpos = pos - db->offset - db->bns->bns->anns[*seqid].offset;
+    *identical = is_remapped_sequence_identical(m, relpos > gap ? relpos - gap : 0, len + gap);
+
 	return x;
 }
+
 /* TODO: currently, the remapped dbidx is hard coded as 0, might want to change that in the future
  * to allow remappings to things other than the primary sequence */
 #define remap(p, dbs, _dbidx, opt_remap) do { \
+        uint64_t gap = (p)->n_gapo + (p)->n_gape; \
+        uint64_t len = (p)->len; \
 		const bwtdb_t *db = (dbs)->db[(_dbidx)]; \
 		(p)->dbidx = (_dbidx); \
 		(p)->remapped_dbidx = 0; \
 		if ((opt_remap)) { \
-			(p)->remapped_pos = __remap((p)->pos, db, (dbs)->db[0], &(p)->remapped_seqid); \
+			(p)->remapped_pos = __remap((p)->pos, len, gap, db, (dbs)->db[0], &(p)->remapped_seqid, &(p)->remap_identical); \
 		} else { \
 			(p)->remapped_pos = (p)->pos; \
 			(p)->remapped_seqid = -1; \
@@ -191,10 +204,9 @@ static void bwa_cal_pac_pos_pe_thread(uint32_t idx, uint32_t size, void *data)
 	isize_info_t *ii = tdata->ii;
 	const pe_opt_t *opt = tdata->opt;
 	const gap_opt_t *gopt = tdata->gopt;
-
-	int i,j;
 	alngrp_t aln[2] = {{0,0}, {0,0}};
 	pos_arr_t arr = {0};
+	int i,j;
 
 	tdata->cnt_chg[idx] = 0;
 	for (i = idx; i < n_seqs; i += size) {
@@ -212,7 +224,14 @@ static void bwa_cal_pac_pos_pe_thread(uint32_t idx, uint32_t size, void *data)
 				for (k = 0; k < aln[j].n; ++k)
 					n_occ[j] += aln[j].a[k].aln.l - aln[j].a[k].aln.k + 1;
 			}
-			if (n_occ[0] > opt->max_occ || n_occ[1] > opt->max_occ) continue;
+
+            compute_seq_coords_and_counts(dbs, opt->remapping, aln, &arr, p);
+            for (j = 0; j < 2; ++j) {
+				int max_diff = gopt->fnr > 0.0? bwa_cal_maxdiff(p[j]->len, BWA_AVG_ERR, gopt->fnr) : gopt->max_diff;
+				p[j]->seQ = p[j]->mapQ = bwa_approx_mapQ(p[j], max_diff);
+            }
+
+#if 0
 			arr.n = 0;
 			for (j = 0; j < 2; ++j) {
 				for (k = 0; k < aln[j].n; ++k) {
@@ -224,6 +243,10 @@ static void bwa_cal_pac_pos_pe_thread(uint32_t idx, uint32_t size, void *data)
 						for (l = 0; l < pos.n; ++l) {
 							position_t alnpos = {0};
 							alnpos.pos = pos.a[l];
+                            alnpos.len = p[j]->len;
+                            alnpos.n_gape = ar->aln.n_gape;
+                            alnpos.n_gapo = ar->aln.n_gapo;
+                            alnpos.score = ar->aln.score;
 							remap(&alnpos, dbs, ar->dbidx, opt->remapping);
 							alnpos.idx_and_end = k<<1 | j;
 							kv_push(position_t, arr, alnpos);
@@ -232,6 +255,10 @@ static void bwa_cal_pac_pos_pe_thread(uint32_t idx, uint32_t size, void *data)
 						for (l = ar->aln.k; l <= ar->aln.l; ++l) {
 							position_t alnpos = {0};
 							alnpos.pos = bwtdb_sa2seq(dbs->db[ar->dbidx], ar->aln.a, l, p[j]->len);
+                            alnpos.len = p[j]->len;
+                            alnpos.n_gape = ar->aln.n_gape;
+                            alnpos.n_gapo = ar->aln.n_gapo;
+                            alnpos.score = ar->aln.score;
 							remap(&alnpos, dbs, ar->dbidx, opt->remapping);
 							alnpos.idx_and_end = k<<1 | j;
 							kv_push(position_t, arr, alnpos);
@@ -239,6 +266,7 @@ static void bwa_cal_pac_pos_pe_thread(uint32_t idx, uint32_t size, void *data)
 					}
 				}
 			}
+#endif
 			{
 				pairing_param_t pairing_param = { p, &arr, aln, opt, gopt->s_mm, ii };
 				tdata->cnt_chg[idx] += find_optimal_pair(&pairing_param);

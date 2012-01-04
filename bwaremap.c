@@ -76,6 +76,52 @@ void read_mapping_destroy(read_mapping_t *m) {
         free(m->cigar);
 }
 
+int is_remapped_sequence_identical(const read_mapping_t *m, uint32_t start, uint32_t len) {
+    uint32_t pos = 0;
+    const char* cigar = m->cigar;
+    char last_op = 0;
+    uint32_t last_len = 0;
+    if (m->exact)
+        return 1;
+
+    while (pos <= start && *cigar) {
+        char* end;
+        last_len = strtoul(cigar, &end, 10);
+
+        if (end == cigar) {
+            fprintf(stderr, "[remap_coordinates] expected number in cigar string '%s' at pos %ld\n",
+                m->cigar, cigar-m->cigar);
+            exit(1);
+        }
+
+        cigar = end;
+        last_op = *cigar;
+        switch (last_op) {
+        case 'M':
+        case 'X':
+        case '=':
+        case 'D':
+            pos += last_len;
+            break;
+        case 'I':
+            break;
+        default:
+            fprintf(stderr, "invalid cigar character '%c'\n", last_op);
+        }
+        cigar++;
+    }
+
+    if (pos > start) {
+        return (last_op == 'M' || last_op == '=')
+            && last_len - start > len;
+    } else if (pos == last_len) {
+        fprintf(stderr, "failed to parse cigar string '%s'\n", m->cigar);
+        exit(1);
+    }
+
+    return 0;
+}
+
 int remap_read_coordinates(const read_mapping_t *m, uint32_t *remapped, uint32_t len) {
     uint32_t i;
     uint32_t pos = m->start;
