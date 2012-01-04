@@ -84,7 +84,7 @@ static seq_t *seq_restore(const char *prefix, const char *extension) {
     strcat(strcpy(path, prefix), extension);
     seq_t *s = calloc(1, sizeof(seq_t));
     s->bns = bns_restore(path);
-    s->remap = s->bns->n_seqs > 0 && can_remap(s->bns->anns[0].name);
+    s->remap = s->bns->n_seqs > 0 && can_remap(s->bns->anns[0].anno);
     if (s->remap)
         fprintf(stderr, " - Remapping enabled for sequence %s\n", prefix);
     return s;
@@ -129,11 +129,11 @@ static void init_remap(dbset_t* dbs) {
             continue;
         bns->mappings = calloc(bns->bns->n_seqs, sizeof(bnsremap_t*));
         for (j = 0; j < bns->bns->n_seqs; ++j) {
-            const char* seqname = bns->bns->anns[j].name;
-            if (can_remap(seqname)) {
+            const char* seqanno = bns->bns->anns[j].anno;
+            if (can_remap(seqanno)) {
                 bns->mappings[j] = calloc(1, sizeof(bnsremap_t));
-                if (!read_mapping_extract(seqname, &bns->mappings[j]->map)) {
-                    err_fatal(__func__, "Failed to remap sequence id %s\n", seqname);
+                if (!read_mapping_extract(seqanno, &bns->mappings[j]->map)) {
+                    err_fatal(__func__, "Failed to remap sequence id %s\n", seqanno);
                 }
             }
         }
