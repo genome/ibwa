@@ -34,8 +34,6 @@ int read_mapping_extract(const char *str, read_mapping_t *m) {
         m->start = 0;
         m->stop = 0;
         m->cigar = 0;
-        m->var_start = 0;
-        m->var_stop = 0;
         return 1;
     }
 
@@ -50,6 +48,8 @@ int read_mapping_extract(const char *str, read_mapping_t *m) {
         return 0;
 
     beg = end+1;
+    m->cigar = strdup(beg);
+/*
     end = strchr(beg, '|');
     m->cigar = malloc(end-beg+1);
     strncpy(m->cigar, beg, end-beg);
@@ -66,6 +66,7 @@ int read_mapping_extract(const char *str, read_mapping_t *m) {
     m->var_stop = strtoul(beg, &end, 10);
     if (end == beg || *end != '|')
         return 0;
+*/
 
     return 1;
 }

@@ -11,8 +11,6 @@ typedef struct
     int exact;
     uint32_t start;
     uint32_t stop;
-    uint32_t var_start;
-    uint32_t var_stop;
     char *cigar;
 } read_mapping_t;
 
