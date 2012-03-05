@@ -2,6 +2,7 @@
 #define __coordmap_h__
 
 #include "bntseq.h"
+#include "bwtaln.h"
 
 #include <stdint.h>
 
@@ -34,11 +35,13 @@ extern "C" {
     int read_mapping_extract(const char *str, read_mapping_t *m);
     void read_mapping_destroy(read_mapping_t *m);
     int is_remapped_sequence_identical(const read_mapping_t *m, uint32_t start, uint32_t len);
-    int remap_read_coordinates(const read_mapping_t *m, uint32_t *remapped, uint32_t len);
+    // int remap_read_coordinates(const read_mapping_t *m, uint32_t *remapped, uint32_t len);
+    int remap_cigar(const char *cigar, uint32_t *result, uint32_t pos, uint32_t seqlen);
     void bwa_remap_dump(uint32_t len, uint32_t *map, const char *outfile);
     void bwa_remap_load(uint32_t *len, uint32_t **map, const char *infile);
     uint64_t bwa_remap_position(const seq_t* bns, const bntseq_t* target, uint64_t pac_coor, int32_t *seqid);
     uint64_t bwa_remap_position_with_seqid(const seq_t* bns, const bntseq_t* target, uint64_t pac_coor, int32_t seqid);
+    int update_cigar(bwa_seq_t* seq, uint32_t pos, const seq_t* bns);
 
 #ifdef __cplusplus
 }

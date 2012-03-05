@@ -73,12 +73,26 @@ set(LIB_SOURCES
 set(MAIN_SOURCES main.c main.h)
 
 add_library(bwa ${LIB_SOURCES})
+target_link_libraries(bwa ${MATH_LIBRARY} ${ZLIB_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
 add_executable(${BWA_EXECUTABLE_NAME} ${MAIN_SOURCES})
 target_link_libraries(${BWA_EXECUTABLE_NAME} bwa
     bwtgen ${MATH_LIBRARY} ${ZLIB_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
 install(TARGETS ${BWA_EXECUTABLE_NAME} DESTINATION bin/)
 install(FILES bwa.1 DESTINATION share/man/man1/
 	RENAME ${BWA_EXECUTABLE_NAME}.1)
+
+# unit tests
+find_package(GTest)
+if(GTEST_FOUND)
+    message("Google Test framework found, building unit tests")
+    enable_testing(true)
+    add_subdirectory(test)
+else()
+    message("Google Test framework not found, no tests will be built")
+    message("GTest is available at http://code.google.com/p/googletest/")
+    message("Ubuntu users can likely sudo apt-get install libgtest-dev")
+endif()
+
 
 
 # Packaging ################################################################

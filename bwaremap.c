@@ -92,7 +92,7 @@ int is_remapped_sequence_identical(const read_mapping_t *m, uint32_t start, uint
         if (end == cigar) {
             fprintf(stderr, "[remap_coordinates] expected number in cigar string '%s' at pos %ld\n",
                 m->cigar, cigar-m->cigar);
-            exit(1);
+            return 0;
         }
 
         cigar = end;
@@ -108,6 +108,7 @@ int is_remapped_sequence_identical(const read_mapping_t *m, uint32_t start, uint
             break;
         default:
             fprintf(stderr, "invalid cigar character '%c'\n", last_op);
+            return 0;
         }
         cigar++;
     }
@@ -117,63 +118,90 @@ int is_remapped_sequence_identical(const read_mapping_t *m, uint32_t start, uint
             && last_len - start > len;
     } else if (pos == last_len) {
         fprintf(stderr, "failed to parse cigar string '%s'\n", m->cigar);
-        exit(1);
+        return 0;
     }
 
     return 0;
 }
 
-int remap_read_coordinates(const read_mapping_t *m, uint32_t *remapped, uint32_t len) {
-    uint32_t i;
-    uint32_t pos = m->start;
-    const char* cigar = m->cigar;
-    uint32_t *cur = remapped;
+int remap_cigar(const char *cigar, uint32_t *result, uint32_t pos, uint32_t seqlen) {
+    const char *p_cigar = cigar;
+    uint32_t altpos = 0;
+    uint32_t refpos = 0;
+    char last_op = 0;
+    uint32_t last_len = 0;
 
-    if (m->exact) {
-        for (i = 0; i < len; ++i)
-            *cur++ = pos++;
-        return 1;
+    if (pos >= seqlen) {
+        fprintf(stderr, "[remap_coordinates] requested pos %u > sequence length %u\n", pos, seqlen);
+        return 0;
     }
 
-    while (*cigar) {
+    while (altpos <= pos && *p_cigar) {
         char* end;
-        uint32_t n = strtoul(cigar, &end, 10);
+        last_len = strtoul(p_cigar, &end, 10);
 
-        if (end == cigar) {
+        if (end == p_cigar) {
             fprintf(stderr, "[remap_coordinates] expected number in cigar string '%s' at pos %ld\n",
-                m->cigar, cigar-m->cigar);
+                cigar, p_cigar - cigar);
             return 0;
         }
 
-        if (cur-remapped+n > len) {
-            fprintf(stderr, "[remap_coordinates] cigar '%s' string implies length > read mapping (%ld vs %d)\n",
-                m->cigar, cur-remapped+n, len);
-            return 0;
-        }
- 
-        cigar = end;
+        p_cigar = end;
+        last_op = *p_cigar;
+        switch (last_op) {
+            case 'M':
+            case 'X':
+            case '=':
+                refpos += last_len;
+                altpos += last_len;
+                break;
 
-        switch (*cigar) {
-        case 'M':
-        case 'X':
-        case '=':
-            for (i = 0; i < n; ++i) *cur++ = pos++;
-            break;
-        case 'I':
-            for (i = 0; i < n; ++i) *cur++ = pos;
-            break;
-        case 'D':
-            pos += n;
-            break;
-        default:
-            fprintf(stderr, "[remap_coordinates] unknown cigar op '%c' in cigar string '%s'\n",
-                *cigar, m->cigar);
-            return 0;
-            break;
-        } 
-        cigar++;
+            case 'D':
+                refpos += last_len;
+                break;
+
+            case 'I':
+                altpos += last_len;
+                break;
+
+            default:
+                fprintf(stderr, "invalid cigar character '%c'\n", last_op);
+                return 0;
+        }
+        p_cigar++;
     }
 
+    if (altpos > seqlen) {
+        fprintf(stderr, "[remap_coordinates] cigar '%s' string implies length > read mapping (%u vs %u)\n",
+            cigar, altpos, seqlen);
+        return 0;
+    }
+
+    if (altpos == pos) {
+        *result = refpos;
+        return 1;
+    } else if (altpos > pos) {
+        switch (last_op) {
+            case 'M':
+            case 'X':
+            case '=':
+                *result = refpos - (altpos-pos);
+                break;
+
+            case 'I':
+                *result = refpos;
+                break;
+
+            default:
+                fprintf(stderr, "Error remapping cigar string %s:, pos=%u\n", cigar, pos);
+                return 0;
+                break;
+        }
+    } else {
+        fprintf(stderr, "failed to parse cigar string '%s'\n", cigar);
+        return 0;
+    }
+    
     return 1;
 }
 
@@ -197,18 +225,19 @@ uint64_t bwa_remap_position_with_seqid(const seq_t* bns, const bntseq_t* tgtbns,
 
     /* TODO: get rid of remap_read_coordinates using an array! */
     if (!m->exact) {
-        uint32_t *map = calloc(bns->bns->anns[seqid].len, sizeof(uint32_t));
-        if (!remap_read_coordinates(m, map, bns->bns->anns[seqid].len))
+        uint32_t offset = 0;
+        uint32_t altpos = pac_coor - bns->bns->anns[seqid].offset;
+        if (!remap_cigar(m->cigar, &offset, altpos, bns->bns->anns[seqid].len))
             err_fatal(__func__, "Failed to remap coordinates");
 
-        rv = map[pac_coor - bns->bns->anns[seqid].offset];
-        free(map);
+        rv = m->start + offset;
     } else {
         rv = pac_coor - bns->bns->anns[seqid].offset;
     }
 
-    if (!m->exact && (rv < m->start || rv > m->stop))
+    if (!m->exact && (rv < m->start || rv > m->stop)) {
         err_fatal(__func__, "remapped position out of range (%u should be in [%u, %u])\n", rv, m->start, m->stop);
+    }
 
     return rv + tgtbns->anns[target_idx].offset;
 }

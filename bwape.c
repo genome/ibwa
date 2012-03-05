@@ -231,42 +231,6 @@ static void bwa_cal_pac_pos_pe_thread(uint32_t idx, uint32_t size, void *data)
 				p[j]->seQ = p[j]->mapQ = bwa_approx_mapQ(p[j], max_diff);
             }
 
-#if 0
-			arr.n = 0;
-			for (j = 0; j < 2; ++j) {
-				for (k = 0; k < aln[j].n; ++k) {
-					alignment_t *ar = &aln[j].a[k];
-					bwtint_t l;
-					if (ar->aln.l - ar->aln.k + 1 >= MIN_HASH_WIDTH) { // then check hash table
-						/* TODO: cache remappings */
-						poslist_t pos = bwtdb_cached_sa2seq(dbs->db[ar->dbidx], &ar->aln, p[j]->len);
-						for (l = 0; l < pos.n; ++l) {
-							position_t alnpos = {0};
-							alnpos.pos = pos.a[l];
-                            alnpos.len = p[j]->len;
-                            alnpos.n_gape = ar->aln.n_gape;
-                            alnpos.n_gapo = ar->aln.n_gapo;
-                            alnpos.score = ar->aln.score;
-							remap(&alnpos, dbs, ar->dbidx, opt->remapping);
-							alnpos.idx_and_end = k<<1 | j;
-							kv_push(position_t, arr, alnpos);
-						}
-					} else { // then calculate on the fly
-						for (l = ar->aln.k; l <= ar->aln.l; ++l) {
-							position_t alnpos = {0};
-							alnpos.pos = bwtdb_sa2seq(dbs->db[ar->dbidx], ar->aln.a, l, p[j]->len);
-                            alnpos.len = p[j]->len;
-                            alnpos.n_gape = ar->aln.n_gape;
-                            alnpos.n_gapo = ar->aln.n_gapo;
-                            alnpos.score = ar->aln.score;
-							remap(&alnpos, dbs, ar->dbidx, opt->remapping);
-							alnpos.idx_and_end = k<<1 | j;
-							kv_push(position_t, arr, alnpos);
-						}
-					}
-				}
-			}
-#endif
 			{
 				pairing_param_t pairing_param = { p, &arr, aln, opt, gopt->s_mm, ii };
 				tdata->cnt_chg[idx] += find_optimal_pair(&pairing_param);
@@ -418,13 +382,13 @@ void bwa_sai2sam_pe_core(pe_inputs_t* inputs, pe_opt_t *popt)
 		fprintf(stderr, "[bwa_sai2sam_pe_core] print alignments... ");
 		for (i = 0; i < n_seqs; ++i) {
 			bwa_seq_t *p[2];
-			uint64_t tmp;
 			p[0] = seqs[0] + i; p[1] = seqs[1] + i;
 			if (p[0]->bc[0] || p[1]->bc[0]) {
 				strcat(p[0]->bc, p[1]->bc);
 				strcpy(p[1]->bc, p[0]->bc);
 			}
 
+/*
 			// use remapped coords for printing
 			if (popt->remapping) {
 				tmp = p[0]->pos; p[0]->pos = p[0]->remapped_pos; p[0]->remapped_pos = tmp;
@@ -433,6 +397,7 @@ void bwa_sai2sam_pe_core(pe_inputs_t* inputs, pe_opt_t *popt)
 				p[0]->remapped_pos = p[0]->pos;
 				p[1]->remapped_pos = p[1]->pos;
 			}
+*/
 			
 			bwa_print_sam1(dbs, p[0], p[1], gopt->mode, gopt->max_top2);
 			bwa_print_sam1(dbs, p[1], p[0], gopt->mode, gopt->max_top2);

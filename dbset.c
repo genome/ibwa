@@ -294,7 +294,7 @@ uint32_t dbset_extract_remapped(const dbset_t *dbs, seq_t **seqs, uint32_t dbidx
         uint32_t sublen = len - total;
         if (sublen > ann->len)
             sublen = ann->len;
-        total += dbset_extract_sequence(dbs, seqs, &ref_seq[total], seq_begin, sublen);
+        total += dbset_extract_sequence(dbs, seqs, &ref_seq[total], beg, sublen);
     }
 
     if (total < len) {
