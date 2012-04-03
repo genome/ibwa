@@ -2,13 +2,93 @@
 #include "byteorder.h"
 #include "utils.h"
 
+#include <errno.h>
 #include <limits.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
 
-int can_remap(const char* str) {
+
+static int can_remap(const char* str) {
     return strncmp("REMAP-", str, 6) == 0;
+}
+
+/* return value:
+ *  -1 - error processing remapping file (fatal error)
+ *   0 - no remapping file (this is not an error)
+ *   1 - remappings loaded
+ */
+int load_remappings(seq_t* seq, const char* path) {
+    char buf[1024];
+    FILE* fp = fopen(path, "r");
+    long line = 0;
+    int i = 0;
+    char* rv = NULL;
+    if (fp == NULL) {
+        fprintf(stderr, "No remapping file %s: (%s)\n",
+            path, strerror(errno));
+        return 0;
+    }
+
+    seq->mappings = calloc(seq->bns->n_seqs, sizeof(bnsremap_t*));
+    rv = fgets(buf, 1024, fp);
+    while (!feof(fp) && rv != NULL) {
+        size_t cigarBufSize = 1024;
+        size_t cigarLen = 0;
+        char* nlpos = strchr(buf, '\n');
+        if (nlpos == NULL ) {
+            fprintf(stderr, "Line %d too long in %s\n", line, path);
+            return -1;
+        }
+        *nlpos = 0;
+
+        ++line;
+        if (buf[0] != '>') {
+            fprintf(stderr, 
+                "Unexpected character '%c' at start of line %ld in "
+                "file '%s'. Expected '>'.\n", buf[0], line, path);
+            return -1;
+        }
+
+        /* TODO: check for OOM */
+        seq->mappings[i] = calloc(1, sizeof(bnsremap_t));
+        seq->mappings[i]->map.cigar = calloc(cigarBufSize, sizeof(char));
+        if (!read_mapping_extract(buf+1, &seq->mappings[i]->map)) {
+            fprintf(stderr, "Failed to extract read mapping from string '%s' "
+                "in file %s, line %ld\n", buf+1, path, line);
+            return -1;
+        }
+
+        while (!feof(fp) && (rv = fgets(buf, 1024, fp)) != NULL && buf[0] != '>') {
+            size_t len = strlen(buf);
+            nlpos = strchr(buf, '\n');
+            if (nlpos == NULL ) {
+                fprintf(stderr, "Line %d too long in %s\n", line, path);
+                return -1;
+            }
+            *nlpos = 0;
+
+            ++line;
+            if (cigarLen + len > cigarBufSize) {
+                while (cigarLen + len > cigarBufSize)
+                    cigarBufSize *= 2;
+
+                seq->mappings[i]->map.cigar = realloc(seq->mappings[i]->map.cigar, cigarBufSize);
+                if (seq->mappings[i]->map.cigar == NULL) {
+                    fprintf(stderr, "load_remappings: failed to allocate memory for cigar string\n");
+                    return -1;
+                }
+            }
+
+            strcat(seq->mappings[i]->map.cigar, buf);
+        }
+        ++line;
+
+        ++i;
+    }
+
+    fclose(fp);
+    return 1;
 }
 
 int read_mapping_extract(const char *str, read_mapping_t *m) {
@@ -44,29 +124,8 @@ int read_mapping_extract(const char *str, read_mapping_t *m) {
 
     beg = end+1;
     m->stop = strtoul(beg, &end, 10) + 1; /* stop = one past the last base */
-    if (end == beg || *end != '|')
+    if (end == beg || *end != '\0')
         return 0;
-
-    beg = end+1;
-    m->cigar = strdup(beg);
-/*
-    end = strchr(beg, '|');
-    m->cigar = malloc(end-beg+1);
-    strncpy(m->cigar, beg, end-beg);
-    m->cigar[end-beg]=0;
-
-    beg = end+1;
-    end = strchr(beg, '|');
-    m->var_start = strtoul(beg, &end, 10);
-    if (end == beg || *end != '|')
-        return 0;
-
-    beg = end+1;
-    end = strchr(beg, '|');
-    m->var_stop = strtoul(beg, &end, 10);
-    if (end == beg || *end != '|')
-        return 0;
-*/
 
     return 1;
 }

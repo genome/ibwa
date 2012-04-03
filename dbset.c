@@ -81,12 +81,20 @@ static void bwtdb_destroy(bwtdb_t *db) {
 
 static seq_t *seq_restore(const char *prefix, const char *extension) {
     char path[PATH_MAX];
+    char rmpath[PATH_MAX];
     strcat(strcpy(path, prefix), extension);
+    strcat(strcpy(rmpath, path), ".remap");
     seq_t *s = calloc(1, sizeof(seq_t));
     s->bns = bns_restore(path);
-    s->remap = s->bns->n_seqs > 0 && can_remap(s->bns->anns[0].anno);
+    s->remap = load_remappings(s, rmpath);
+    if (s->remap < 0) {
+        fprintf(stderr, "Fatal error loading sequence mappings from %s\n", rmpath);
+        exit(1);
+    }
+
     if (s->remap)
         fprintf(stderr, " - Remapping enabled for sequence %s\n", prefix);
+
     return s;
 }
 
@@ -119,25 +127,6 @@ static void seq_destroy(seq_t *s) {
 
     if (s->bns) bns_destroy(s->bns);
     free(s);
-}
-
-static void init_remap(dbset_t* dbs) {
-    int i,j;
-    for (i = 0; i < dbs->count; ++i) {
-        seq_t* bns = dbs->bns[i];
-        if (!bns->remap)
-            continue;
-        bns->mappings = calloc(bns->bns->n_seqs, sizeof(bnsremap_t*));
-        for (j = 0; j < bns->bns->n_seqs; ++j) {
-            const char* seqanno = bns->bns->anns[j].anno;
-            if (can_remap(seqanno)) {
-                bns->mappings[j] = calloc(1, sizeof(bnsremap_t));
-                if (!read_mapping_extract(seqanno, &bns->mappings[j]->map)) {
-                    err_fatal(__func__, "Failed to remap sequence id %s\n", seqanno);
-                }
-            }
-        }
-    }
 }
 
 dbset_t *dbset_restore(int count, const char **prefixes, int mode, int preload) {
@@ -177,7 +166,7 @@ dbset_t *dbset_restore(int count, const char **prefixes, int mode, int preload) 
         }
     }
 
-    init_remap(dbs);
+    /* init_remap(dbs); */
 
     return dbs;
 }
