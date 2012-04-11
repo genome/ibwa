@@ -345,7 +345,7 @@ void bwa_sai2sam_pe_core(pe_inputs_t* inputs, pe_opt_t *popt)
 	ks[0] = bwa_open_reads(gopt0->mode, inputs->fq[0]);
 	ks[1] = bwa_open_reads(gopt->mode, inputs->fq[1]);
 
-	dbs = dbset_restore(inputs->count, inputs->prefixes.a, gopt->mode, popt->is_preload);
+	dbs = dbset_restore(inputs->count, inputs->prefixes.a, gopt->mode, popt->is_preload, popt->remapping);
 	srand48(dbs->db[0]->bns->bns->seed);
 
 	// core loop
@@ -388,16 +388,15 @@ void bwa_sai2sam_pe_core(pe_inputs_t* inputs, pe_opt_t *popt)
 				strcpy(p[1]->bc, p[0]->bc);
 			}
 
-/*
 			// use remapped coords for printing
 			if (popt->remapping) {
+                uint64_t tmp;
 				tmp = p[0]->pos; p[0]->pos = p[0]->remapped_pos; p[0]->remapped_pos = tmp;
 				tmp = p[1]->pos; p[1]->pos = p[1]->remapped_pos; p[1]->remapped_pos = tmp;
 			} else {
 				p[0]->remapped_pos = p[0]->pos;
 				p[1]->remapped_pos = p[1]->pos;
 			}
-*/
 			
 			bwa_print_sam1(dbs, p[0], p[1], gopt->mode, gopt->max_top2);
 			bwa_print_sam1(dbs, p[1], p[0], gopt->mode, gopt->max_top2);

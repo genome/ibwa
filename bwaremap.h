@@ -13,6 +13,7 @@ typedef struct
     uint32_t start;
     uint32_t stop;
     char *cigar;
+    int n_gapo;
 } read_mapping_t;
 
 typedef struct {

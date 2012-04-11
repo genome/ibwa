@@ -13,6 +13,16 @@ static int can_remap(const char* str) {
     return strncmp("REMAP-", str, 6) == 0;
 }
 
+static int cigar_gap_opens(const char* cigar) {
+    int rv = 0;
+    while (*cigar) {
+        if (*cigar == 'I' || *cigar == 'D')
+            ++rv;
+        ++cigar;
+    }
+    return rv;
+}
+
 /* return value:
  *  -1 - error processing remapping file (fatal error)
  *   0 - no remapping file (this is not an error)
@@ -37,7 +47,7 @@ int load_remappings(seq_t* seq, const char* path) {
         size_t cigarLen = 0;
         char* nlpos = strchr(buf, '\n');
         if (nlpos == NULL ) {
-            fprintf(stderr, "Line %d too long in %s\n", line, path);
+            fprintf(stderr, "Line %ld too long in %s\n", line, path);
             return -1;
         }
         *nlpos = 0;
@@ -63,7 +73,7 @@ int load_remappings(seq_t* seq, const char* path) {
             size_t len = strlen(buf);
             nlpos = strchr(buf, '\n');
             if (nlpos == NULL ) {
-                fprintf(stderr, "Line %d too long in %s\n", line, path);
+                fprintf(stderr, "Line %ld too long in %s\n", line, path);
                 return -1;
             }
             *nlpos = 0;
@@ -83,7 +93,7 @@ int load_remappings(seq_t* seq, const char* path) {
             strcat(seq->mappings[i]->map.cigar, buf);
         }
         ++line;
-
+        seq->mappings[i]->map.n_gapo = cigar_gap_opens(seq->mappings[i]->map.cigar);
         ++i;
     }
 

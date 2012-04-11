@@ -11,6 +11,7 @@
 #include "utils.h"
 #include "kstring.h"
 #include "dbset.h"
+#include "translate_cigar.h"
 
 typedef struct {
 	int count;
@@ -218,6 +219,24 @@ static bwa_cigar_t *refine_gapped_core(dbset_t *dbs, seq_t **bns, uint32_t dbidx
 
 	*_pos = __pos;
 	free(ref_seq); free(path);
+
+    if (bns[dbidx]->remap
+        && bns[dbidx]->mappings[seqid] 
+        && bns[dbidx]->mappings[seqid]->map.cigar)
+    {
+        uint64_t start = *_pos - dbs->db[dbidx]->offset - bns[dbidx]->bns->anns[seqid].offset;
+        bwa_cigar_t* cig = translate_cigar(
+            bns[dbidx]->mappings[seqid]->map.cigar,
+            start,
+            cigar,
+            *n_cigar,
+            len,
+            n_cigar);
+        if (cigar)
+            free(cigar);
+        cigar = cig;
+    }
+
 	return cigar;
 }
 
@@ -319,6 +338,14 @@ void bwa_refine_gapped(dbset_t *dbs, int n_seqs, bwa_seq_t *seqs)
 	dbset_load_pac(dbs);
 	for (i = 0; i != n_seqs; ++i) {
 		bwa_seq_t *s = seqs + i;
+        int remapped_gapo = 0; /* remapped sequences can also have gaps */
+        if (dbs->bns[s->dbidx]->remap
+            && dbs->bns[s->dbidx]->mappings
+            && dbs->bns[s->dbidx]->mappings[s->remapped_seqid])
+        {
+            remapped_gapo += dbs->bns[s->dbidx]->mappings[s->remapped_seqid]->map.n_gapo;
+        }
+
 		seq_reverse(s->len, s->seq, 0); // IMPORTANT: s->seq is reversed here!!!
 		for (j = 0; j < s->n_multi; ++j) {
 			bwt_multi1_t *q = s->multi + j;
@@ -328,7 +355,11 @@ void bwa_refine_gapped(dbset_t *dbs, int n_seqs, bwa_seq_t *seqs)
 										  (q->strand? 1 : -1) * q->gap, &n_cigar, 1);
 			q->n_cigar = n_cigar;
 		}
-		if (s->type == BWA_TYPE_NO_MATCH || s->type == BWA_TYPE_MATESW || s->n_gapo == 0) continue;
+		if (s->type == BWA_TYPE_NO_MATCH || s->type == BWA_TYPE_MATESW 
+            || (s->n_gapo == 0 && remapped_gapo == 0))
+        {
+            continue;
+        }
 		s->cigar = refine_gapped_core(dbs, dbs->bns, s->dbidx, s->remapped_seqid, s->len, s->strand? s->rseq : s->seq, &s->pos,
 									  (s->strand? 1 : -1) * (s->n_gapo + s->n_gape), &s->n_cigar, 1);
 	}
@@ -362,7 +393,12 @@ void bwa_refine_gapped(dbset_t *dbs, int n_seqs, bwa_seq_t *seqs)
 		bwa_seq_t *s = seqs + i;
 		if (s->type != BWA_TYPE_NO_MATCH) {
 			int nm;
+/*
 			s->md = bwa_cal_md1(s->n_cigar, s->cigar, s->len, s->pos, s->strand? s->rseq : s->seq,
+								dbs, dbs->color_space ? dbs->ntbns : dbs->bns, str, &nm);
+*/
+            /* let's try simple remapping... */
+			s->md = bwa_cal_md1(s->n_cigar, s->cigar, s->len, s->remapped_pos, s->strand? s->rseq : s->seq,
 								dbs, dbs->color_space ? dbs->ntbns : dbs->bns, str, &nm);
 
 			s->nm = nm;
@@ -622,7 +658,7 @@ void bwa_sai2sam_se_core(const char *prefix, const char *fn_sa, const char *fn_f
 
 	m_aln = 0;
 	fread(&opt, sizeof(gap_opt_t), 1, fp_sa);
-	dbs = dbset_restore(1, &prefix, opt.mode, 0);
+	dbs = dbset_restore(1, &prefix, opt.mode, 0, 0);
 	srand48(dbs->bns[0]->bns->seed);
 
 	dbset_print_sam_SQ(dbs);

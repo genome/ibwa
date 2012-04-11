@@ -79,21 +79,24 @@ static void bwtdb_destroy(bwtdb_t *db) {
     free(db);
 }
 
-static seq_t *seq_restore(const char *prefix, const char *extension) {
+static seq_t *seq_restore(const char *prefix, const char *extension, int remap) {
     char path[PATH_MAX];
     char rmpath[PATH_MAX];
     strcat(strcpy(path, prefix), extension);
     strcat(strcpy(rmpath, path), ".remap");
     seq_t *s = calloc(1, sizeof(seq_t));
     s->bns = bns_restore(path);
-    s->remap = load_remappings(s, rmpath);
-    if (s->remap < 0) {
-        fprintf(stderr, "Fatal error loading sequence mappings from %s\n", rmpath);
-        exit(1);
+    if (remap) {
+        s->remap = load_remappings(s, rmpath);
+        if (s->remap < 0) {
+            fprintf(stderr, "Fatal error loading sequence mappings from %s\n", rmpath);
+            exit(1);
+        } else if (s->remap) {
+            fprintf(stderr, " - Remapping enabled for sequence %s\n", prefix);
+        }
+    } else {
+        s->remap = 0;
     }
-
-    if (s->remap)
-        fprintf(stderr, " - Remapping enabled for sequence %s\n", prefix);
 
     return s;
 }
@@ -129,7 +132,7 @@ static void seq_destroy(seq_t *s) {
     free(s);
 }
 
-dbset_t *dbset_restore(int count, const char **prefixes, int mode, int preload) {
+dbset_t *dbset_restore(int count, const char **prefixes, int mode, int preload, int remap) {
     int i;
     dbset_t *dbs = calloc(1, sizeof(dbset_t));
     dbs->count = count;
@@ -143,7 +146,7 @@ dbset_t *dbset_restore(int count, const char **prefixes, int mode, int preload) 
     for (i = 0; i < count; ++i) {
         dbs->db[i] = bwtdb_load(prefixes[i]);
         dbs->db[i]->offset = dbs->l_pac;
-        dbs->bns[i] = seq_restore(prefixes[i], "");
+        dbs->bns[i] = seq_restore(prefixes[i], "", remap);
         dbs->db[i]->bns = dbs->bns[i];
         dbs->l_pac += dbs->bns[i]->bns->l_pac;
 
@@ -156,7 +159,7 @@ dbset_t *dbset_restore(int count, const char **prefixes, int mode, int preload) 
         dbs->total_bwt_seq_len[1] += dbs->db[i]->bwt[1]->seq_len;
 
         if (dbs->color_space) {
-            dbs->ntbns[i] = seq_restore(prefixes[i], ".nt");
+            dbs->ntbns[i] = seq_restore(prefixes[i], ".nt", remap);
             dbs->db[i]->ntbns = dbs->ntbns[i];
             dbs->color_space = 1;
         } else if (preload) {
@@ -165,8 +168,6 @@ dbset_t *dbset_restore(int count, const char **prefixes, int mode, int preload) 
             bwtdb_load_sa(dbs->db[i], 1);
         }
     }
-
-    /* init_remap(dbs); */
 
     return dbs;
 }

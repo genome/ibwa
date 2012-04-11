@@ -68,6 +68,7 @@ set(LIB_SOURCES
     bwapair.c bwapair.h
     bwasw.c bwasw.h
     bwaremap.c bwaremap.h
+    translate_cigar.cpp translate_cigar.h
     filter_alignments.cpp filter_alignments.h
 )
 set(MAIN_SOURCES main.c main.h)

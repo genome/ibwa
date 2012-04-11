@@ -35,7 +35,7 @@ extern "C" {
 #endif /* __cplusplus */
 
     int coord2idx(const dbset_t *dbs, int64_t pos);
-    dbset_t *dbset_restore(int count, const char **prefixes, int mode, int preload);
+    dbset_t *dbset_restore(int count, const char **prefixes, int mode, int preload, int remap);
     void dbset_destroy(dbset_t *dbs);
 
     void dbset_load_sa(dbset_t *dbs, int which);
