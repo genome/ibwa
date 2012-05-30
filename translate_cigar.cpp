@@ -9,7 +9,7 @@
 using namespace std;
 
 namespace {
-    const char* OPS = "MIDS";
+    const char* OPS = "MIDSN";
     int cigar_len(bwa_cigar_t* cigar, int n) {
         int len = 0;
         for (int i = 0; i < n; ++i) {
@@ -93,6 +93,7 @@ struct CigarTranslator {
         switch (op) {
             case 'M': return 0; break;
             case 'I': return 1; break;
+            case 'N':
             case 'D': return 2; break;
             case 'S': return 3; break;
             default:
@@ -133,6 +134,7 @@ struct CigarTranslator {
                 read_len = 0;
                 break;
 
+            case 'N':
             case 'D':
                 seq_len -= read_len;
             case 'S':
@@ -164,6 +166,7 @@ struct CigarTranslator {
                 read_len = 0;
                 break;
 
+            case 'N':
             case 'D':
                 seq_len -= read_len;
                 read_advance();
@@ -178,14 +181,15 @@ struct CigarTranslator {
     void in_deletion() {
         switch (OPS[read_op]) {
             case 'M':
-                cb.push(2, seq_len);
+                cb.push(tr_seqop(seq_op), seq_len);
                 seq_advance();
                 break;
             case 'I':
                 throw runtime_error("Insertions within a deletion are not allowed");
                 break;
+            case 'N':
             case 'D':
-                cb.push(2, seq_len+read_len);
+                cb.push(tr_seqop(seq_op), seq_len+read_len);
                 seq_advance();
                 read_advance();
                 break;
@@ -233,6 +237,7 @@ struct CigarTranslator {
                     in_insertion();
                     break;
 
+                case 'N':
                 case 'D':
                     in_deletion();
                     break;
@@ -264,6 +269,7 @@ struct CigarTranslator {
                     }
                     break;
 
+                case 'N':
                 case 'D':
                     break;
 

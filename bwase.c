@@ -486,7 +486,7 @@ void bwa_print_sam1(const dbset_t *dbs, bwa_seq_t *p, const bwa_seq_t *mate, int
 		// print CIGAR
 		if (p->cigar) {
 			for (j = 0; j != p->n_cigar; ++j)
-				printf("%d%c", __cigar_len(p->cigar[j]), "MIDS"[__cigar_op(p->cigar[j])]);
+				printf("%d%c", __cigar_len(p->cigar[j]), "MIDSN"[__cigar_op(p->cigar[j])]);
 		} else if (p->type == BWA_TYPE_NO_MATCH) printf("*");
 		else printf("%dM", p->len);
 
@@ -547,7 +547,7 @@ void bwa_print_sam1(const dbset_t *dbs, bwa_seq_t *p, const bwa_seq_t *mate, int
 						   (int)(q->pos - (bns->anns[seqid].offset + bnsoffset) + 1));
 					if (q->cigar) {
 						for (k = 0; k < q->n_cigar; ++k)
-							printf("%d%c", __cigar_len(q->cigar[k]), "MIDS"[__cigar_op(q->cigar[k])]);
+							printf("%d%c", __cigar_len(q->cigar[k]), "MIDSN"[__cigar_op(q->cigar[k])]);
 					} else printf("%dM", p->len);
 					printf(",%d;", q->gap + q->mm);
 				}

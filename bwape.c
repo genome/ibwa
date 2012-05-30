@@ -349,7 +349,7 @@ void bwa_sai2sam_pe_core(pe_inputs_t* inputs, pe_opt_t *popt)
 	srand48(dbs->db[0]->bns->bns->seed);
 
 	// core loop
-	dbset_print_sam_SQ(dbs);
+	//dbset_print_sam_SQ(dbs);
 	bwa_print_sam_PG();
 	while ((seqs[0] = bwa_read_seq(ks[0], 0x40000, &n_seqs, gopt0->mode, gopt0->trim_qual)) != 0) {
 		int cnt_chg;

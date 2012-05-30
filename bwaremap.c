@@ -10,13 +10,20 @@
 
 
 static int can_remap(const char* str) {
-    return strncmp("REMAP-", str, 6) == 0;
+    int ndash = 0;
+    int npipe = 0;
+    while (*str) {
+        if (*str == '-') ++ndash;
+        if (*str == '|') ++npipe;
+        ++str;
+    }
+    return ndash == 1 && npipe == 2;
 }
 
 static int cigar_gap_opens(const char* cigar) {
     int rv = 0;
     while (*cigar) {
-        if (*cigar == 'I' || *cigar == 'D')
+        if (*cigar == 'I' || *cigar == 'D' || *cigar == 'N')
             ++rv;
         ++cigar;
     }
@@ -29,7 +36,8 @@ static int cigar_gap_opens(const char* cigar) {
  *   1 - remappings loaded
  */
 int load_remappings(seq_t* seq, const char* path) {
-    char buf[1024];
+    const int bufsz = 8192;
+    char buf[bufsz];
     FILE* fp = fopen(path, "r");
     long line = 0;
     int i = 0;
@@ -41,9 +49,9 @@ int load_remappings(seq_t* seq, const char* path) {
     }
 
     seq->mappings = calloc(seq->bns->n_seqs, sizeof(bnsremap_t*));
-    rv = fgets(buf, 1024, fp);
+    rv = fgets(buf, bufsz, fp);
     while (!feof(fp) && rv != NULL) {
-        size_t cigarBufSize = 1024;
+        size_t cigarBufSize = bufsz;
         size_t cigarLen = 0;
         char* nlpos = strchr(buf, '\n');
         if (nlpos == NULL ) {
@@ -69,7 +77,7 @@ int load_remappings(seq_t* seq, const char* path) {
             return -1;
         }
 
-        while (!feof(fp) && (rv = fgets(buf, 1024, fp)) != NULL && buf[0] != '>') {
+        while (!feof(fp) && (rv = fgets(buf, bufsz, fp)) != NULL && buf[0] != '>') {
             size_t len = strlen(buf);
             nlpos = strchr(buf, '\n');
             if (nlpos == NULL ) {
@@ -109,7 +117,10 @@ int read_mapping_extract(const char *str, read_mapping_t *m) {
     if (!can_remap(str))
         return 0;
 
-    beg = str + 6;
+    beg = strchr(str, '-'); 
+    if (beg == 0)
+        return 0;
+    ++beg;
     end = strchr(beg, '|');
     if (beg == end || end == 0)
         return 0;
@@ -170,6 +181,7 @@ int is_remapped_sequence_identical(const read_mapping_t *m, uint32_t start, uint
         case 'M':
         case 'X':
         case '=':
+        case 'N':
         case 'D':
             pos += last_len;
             break;
@@ -225,6 +237,7 @@ int remap_cigar(const char *cigar, uint32_t *result, uint32_t pos, uint32_t seql
                 altpos += last_len;
                 break;
 
+            case 'N':
             case 'D':
                 refpos += last_len;
                 break;
