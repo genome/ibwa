@@ -102,7 +102,18 @@ static void pairing_aux(const pairing_param_t *param, pairing_internals_t *pint,
     const isize_info_t *ii = param->ii;
 
     // here v>=u. When ii is set, we check insert size with ii; otherwise with opt->max_isize
-    bwtint_t l = v->remapped_pos + p[__aln_end(*v)]->len - u->remapped_pos;
+    bwtint_t l;
+    // if both remapped and on same seqid
+    if (u->remapped_pos != u->pos && v->remapped_pos != v->pos
+        && u->dbidx == v->dbidx
+        && u->remapped_seqid == v->remapped_seqid
+        )
+    {
+        l = v->pos + p[__aln_end(*v)]->len - u->pos;
+    }
+    else
+        l = v->remapped_pos + p[__aln_end(*v)]->len - u->remapped_pos;
+
     if (u->remapped_pos != (uint64_t)-1 && v->remapped_pos > u->remapped_pos
         && l >= pint->max_len && ((ii->high && l <= ii->high_bayesian)
         || (ii->high == 0 && l <= opt->max_isize)))
