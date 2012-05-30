@@ -184,9 +184,15 @@ struct CigarTranslator {
                 cb.push(tr_seqop(seq_op), seq_len);
                 seq_advance();
                 break;
+
             case 'I':
-                throw runtime_error("Insertions within a deletion are not allowed");
+                cb.push(tr_seqop(seq_op), seq_len);
+                seq_advance();
+
+                cb.push(read_op, read_len);
+                read_advance();
                 break;
+
             case 'N':
             case 'D':
                 cb.push(tr_seqop(seq_op), seq_len+read_len);
@@ -248,7 +254,10 @@ struct CigarTranslator {
         }
 
         if (!eor()) {
-            throw runtime_error("Read longer than sequence");
+            for (size_t i = read_cigar_idx; i < n_cigar; ++i) {
+                cb.push(read_op, read_len);
+                read_advance();
+            }
         }
     }
 
