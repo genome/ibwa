@@ -114,6 +114,7 @@ void compute_seq_coords_and_counts(
 
         p[j]->c1 = optimalCount;
         p[j]->c2 = pos2score.size() - optimalCount;
-        p[j]->type = p[j]->c1 > 1 ? BWA_TYPE_REPEAT : BWA_TYPE_UNIQUE;
+        if (p[j]->c1 != 0)
+            p[j]->type = p[j]->c1 > 1 ? BWA_TYPE_REPEAT : BWA_TYPE_UNIQUE;
     }
 }

@@ -37,12 +37,12 @@ typedef struct {
 	int score;
 } bwt_aln1_t;
 
-typedef uint16_t bwa_cigar_t;
+typedef uint32_t bwa_cigar_t;
 /* rgoya: If changing order of bytes, beware of operations like:
  *     s->cigar[0] += s->full_len - s->len;
  */
-#define CIGAR_OP_SHIFT 14
-#define CIGAR_LN_MASK 0x3fff
+#define CIGAR_OP_SHIFT 29
+#define CIGAR_LN_MASK 0x1fffffff
 
 #define __cigar_op(__cigar) ((__cigar)>>CIGAR_OP_SHIFT)
 #define __cigar_len(__cigar) ((__cigar)&CIGAR_LN_MASK)

@@ -154,9 +154,11 @@ struct CigarTranslator {
             case 'M':
                 if (seq_len < read_len) {
                     cb.push(1, seq_len);
+                    read_len -= seq_len;
                     seq_len = 0;
                 } else {
                     cb.push(1, read_len);
+                    seq_len -= read_len;
                     read_len = 0;
                 }
                 break;
@@ -254,7 +256,7 @@ struct CigarTranslator {
         }
 
         if (!eor()) {
-            for (size_t i = read_cigar_idx; i < n_cigar; ++i) {
+            for (int i = read_cigar_idx; i < n_cigar; ++i) {
                 cb.push(read_op, read_len);
                 read_advance();
             }
@@ -275,11 +277,13 @@ struct CigarTranslator {
                         cpos = start_pos;
                     } else {
                         cpos += seq_len;
+                        seq_len = 0;
                     }
                     break;
 
                 case 'N':
                 case 'D':
+                    seq_len = 0;
                     break;
 
                 default:

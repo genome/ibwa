@@ -36,7 +36,7 @@ static int cigar_gap_opens(const char* cigar) {
  *   1 - remappings loaded
  */
 int load_remappings(seq_t* seq, const char* path) {
-    const int bufsz = 8192;
+    const int bufsz = 65536;
     char buf[bufsz];
     FILE* fp = fopen(path, "r");
     long line = 0;
@@ -142,6 +142,7 @@ int read_mapping_extract(const char *str, read_mapping_t *m) {
     m->start = strtoul(beg, &end, 10);
     if (end == beg || *end != '|')
         return 0;
+    --m->start;
 
     beg = end+1;
     m->stop = strtoul(beg, &end, 10) + 1; /* stop = one past the last base */

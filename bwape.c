@@ -215,21 +215,25 @@ static void bwa_cal_pac_pos_pe_thread(uint32_t idx, uint32_t size, void *data)
 			p[j] = seqs[j] + i;
 			aln[j] = *buf[j][i];
 		}
+
+        compute_seq_coords_and_counts(dbs, opt->remapping, aln, &arr, p);
+        for (j = 0; j < 2; ++j) {
+            int max_diff = gopt->fnr > 0.0? bwa_cal_maxdiff(p[j]->len, BWA_AVG_ERR, gopt->fnr) : gopt->max_diff;
+            if (p[j]->c1 || p[j]->c2)
+                p[j]->seQ = p[j]->mapQ = bwa_approx_mapQ(p[j], max_diff);
+        }
+
 		if ((p[0]->type == BWA_TYPE_UNIQUE || p[0]->type == BWA_TYPE_REPEAT)
 			&& (p[1]->type == BWA_TYPE_UNIQUE || p[1]->type == BWA_TYPE_REPEAT))
 		{ // only when both ends mapped
-			int j, k, n_occ[2];
+/*
+            int k, n_occ[2];
 			for (j = 0; j < 2; ++j) {
 				n_occ[j] = 0;
 				for (k = 0; k < aln[j].n; ++k)
 					n_occ[j] += aln[j].a[k].aln.l - aln[j].a[k].aln.k + 1;
 			}
-
-            compute_seq_coords_and_counts(dbs, opt->remapping, aln, &arr, p);
-            for (j = 0; j < 2; ++j) {
-				int max_diff = gopt->fnr > 0.0? bwa_cal_maxdiff(p[j]->len, BWA_AVG_ERR, gopt->fnr) : gopt->max_diff;
-				p[j]->seQ = p[j]->mapQ = bwa_approx_mapQ(p[j], max_diff);
-            }
+*/
 
 			{
 				pairing_param_t pairing_param = { p, &arr, aln, opt, gopt->s_mm, ii };
@@ -280,6 +284,7 @@ int bwa_cal_pac_pos_pe(dbset_t *dbs, int n_seqs, bwa_seq_t *seqs[2], saiset_t *s
 				p[j]->pos = bwtdb_sa2seq(dbs->db[main_aln->dbidx], p[j]->strand, p[j]->sa, p[j]->len);
 				remap(p[j], dbs, main_aln->dbidx, opt->remapping);
 				p[j]->seQ = p[j]->mapQ = bwa_approx_mapQ(p[j], max_diff);
+
 			}
 		}
 	}
