@@ -67,7 +67,7 @@ set(LIB_SOURCES
     byteorder.c byteorder.h
     bwapair.c bwapair.h
     bwasw.c bwasw.h
-    bwaremap.c bwaremap.h
+    bwaremap.cpp bwaremap.h
     translate_cigar.cpp translate_cigar.h
     filter_alignments.cpp filter_alignments.h
 )

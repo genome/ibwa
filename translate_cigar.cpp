@@ -93,9 +93,9 @@ struct CigarTranslator {
         switch (op) {
             case 'M': return 0; break;
             case 'I': return 1; break;
-            case 'N':
             case 'D': return 2; break;
             case 'S': return 3; break;
+            case 'N': return 4; break;
             default:
                 throw runtime_error(string("Unknown cigar operation: ") + op);
                 break;
@@ -162,8 +162,14 @@ struct CigarTranslator {
 
             case 'N':
             case 'D':
-                seq_len -= read_len;
-                read_advance();
+                
+                if (seq_len > read_len) {
+                    seq_len -= read_len;
+                    read_len = 0;
+                } else {
+                    read_len -= seq_len;
+                    seq_len = 0;
+                }
                 break;
 
             default:
@@ -189,9 +195,8 @@ struct CigarTranslator {
 
             case 'N':
             case 'D':
-                cb.push(tr_seqop(seq_op), seq_len+read_len);
-                seq_advance();
-                read_advance();
+                cb.push(tr_seqop(seq_op), seq_len);
+                seq_len = 0;
                 break;
             default:
                 throw runtime_error("Unknown cigar op in read");
@@ -249,11 +254,13 @@ struct CigarTranslator {
             }
         }
 
-        if (!eor()) {
-            for (int i = read_cigar_idx; i < n_cigar; ++i) {
-                cb.push(read_op, read_len);
+        while (!eor()) {
+            if (read_len == 0)
                 read_advance();
-            }
+
+            if (OPS[read_op] == 'M' || OPS[read_op] == 'I')
+                cb.push(tr_seqop('S'), read_len);
+            read_len = 0;
         }
     }
 

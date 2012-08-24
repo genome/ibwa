@@ -8,6 +8,10 @@
 #include <string.h>
 #include <stdio.h>
 
+#include <fstream>
+#include <string>
+
+using namespace std;
 
 static int can_remap(const char* str) {
     int ndash = 0;
@@ -36,88 +40,63 @@ static int cigar_gap_opens(const char* cigar) {
  *   1 - remappings loaded
  */
 int load_remappings(seq_t* seq, const char* path) {
-    const int bufsz = 65536;
-    char buf[bufsz];
-    FILE* fp = fopen(path, "r");
-    long line = 0;
+    ifstream in(path);
+    long lineNum = 0;
     int i = 0;
-    char* rv = NULL;
-    if (fp == NULL) {
+    if (!in.is_open()) {
         fprintf(stderr, "No remapping file %s: (%s)\n",
             path, strerror(errno));
         return 0;
     }
 
-    seq->mappings = calloc(seq->bns->n_seqs, sizeof(bnsremap_t*));
-    rv = fgets(buf, bufsz, fp);
-    while (!feof(fp) && rv != NULL) {
-        size_t cigarBufSize = bufsz;
-        size_t cigarLen = 0;
-        char* nlpos = strchr(buf, '\n');
-        if (nlpos == NULL ) {
-            fprintf(stderr, "Line %ld too long in %s\n", line, path);
-            return -1;
-        }
-        *nlpos = 0;
+    seq->mappings = (bnsremap_t**)calloc(seq->bns->n_seqs, sizeof(bnsremap_t*));
 
-        ++line;
-        if (buf[0] != '>') {
+    string line;
+    if (!getline(in, line)) {
+        fprintf(stderr, "Empty remapping file '%s'\n", path);
+        return -1;
+    }
+
+    while (!in.eof()) {
+        ++lineNum;
+        if (line[0] != '>') {
             fprintf(stderr, 
                 "Unexpected character '%c' at start of line %ld in "
-                "file '%s'. Expected '>'.\n", buf[0], line, path);
+                "file '%s'. Expected '>'.\n", line[0], lineNum, path);
             return -1;
         }
 
-        /* TODO: check for OOM */
-        seq->mappings[i] = calloc(1, sizeof(bnsremap_t));
-        seq->mappings[i]->map.cigar = calloc(cigarBufSize, sizeof(char));
-        if (!read_mapping_extract(buf+1, &seq->mappings[i]->map)) {
+        seq->mappings[i] = reinterpret_cast<bnsremap_t*>(calloc(1, sizeof(bnsremap_t)));
+        if (!read_mapping_extract(line.data()+1, &seq->mappings[i]->map)) {
             fprintf(stderr, "Failed to extract read mapping from string '%s' "
-                "in file %s, line %ld\n", buf+1, path, line);
+                "in file %s, line %ld\n", line.data()+1, path, lineNum);
             return -1;
         }
 
-        while (!feof(fp) && (rv = fgets(buf, bufsz, fp)) != NULL && buf[0] != '>') {
-            size_t len = strlen(buf);
-            nlpos = strchr(buf, '\n');
-            if (nlpos == NULL ) {
-                fprintf(stderr, "Line %ld too long in %s\n", line, path);
-                return -1;
-            }
-            *nlpos = 0;
-
-            ++line;
-            if (cigarLen + len > cigarBufSize) {
-                while (cigarLen + len > cigarBufSize)
-                    cigarBufSize *= 2;
-
-                seq->mappings[i]->map.cigar = realloc(seq->mappings[i]->map.cigar, cigarBufSize);
-                if (seq->mappings[i]->map.cigar == NULL) {
-                    fprintf(stderr, "load_remappings: failed to allocate memory for cigar string\n");
-                    return -1;
-                }
-            }
-
-            strcat(seq->mappings[i]->map.cigar, buf);
+        string cigar;
+        while (getline(in, line) && line[0] != '>') {
+            ++lineNum;
+            cigar += line;
         }
-        ++line;
+        seq->mappings[i]->map.cigar = reinterpret_cast<char*>(calloc(cigar.size()+1, sizeof(char)));
+        strncpy(seq->mappings[i]->map.cigar, cigar.data(), cigar.size());
+        ++lineNum;
         seq->mappings[i]->map.n_gapo = cigar_gap_opens(seq->mappings[i]->map.cigar);
         ++i;
     }
 
-    fclose(fp);
     return 1;
 }
 
 int read_mapping_extract(const char *str, read_mapping_t *m) {
-    const char *beg;
+    char *beg;
     char *end;
 
     m->exact = 0;
     if (!can_remap(str))
         return 0;
 
-    beg = strchr(str, '-'); 
+    beg = strchr(const_cast<char*>(str), '-'); 
     if (beg == 0)
         return 0;
     ++beg;
@@ -125,7 +104,7 @@ int read_mapping_extract(const char *str, read_mapping_t *m) {
     if (beg == end || end == 0)
         return 0;
 
-    m->seqname = malloc(end-beg+1);
+    m->seqname = reinterpret_cast<char*>(malloc(end-beg+1));
     strncpy(m->seqname, beg, end-beg);
     m->seqname[end-beg]=0;
     beg = end+1;
