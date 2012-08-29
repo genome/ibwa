@@ -245,7 +245,7 @@ uint64_t bwtdb_sa2seq(const bwtdb_t *db, int strand, uint32_t sa, uint32_t seq_l
     }
 }
 
-int dbset_coor_pac2real(const dbset_t *dbs, int64_t pac_coor, int len, int32_t *real_seq, 
+int dbset_coor_pac2real(const dbset_t *dbs, int64_t pac_coor, int len, int32_t *real_seq,
                         const bntseq_t **bns, uint64_t *offset)
 {
     int idx = coord2idx(dbs, pac_coor);
@@ -303,7 +303,7 @@ uint32_t dbset_extract_sequence(const dbset_t *dbs, seq_t **seqs, ubyte_t* ref_s
     uint32_t total = 0;
     while (total < len) {
         int64_t idx, pos;
-        seq_t *s; 
+        seq_t *s;
         bwtdb_t *db;
         if (beg >= dbs->l_pac) break;
         idx = coord2idx(dbs, beg);
@@ -324,9 +324,12 @@ void dbset_print_sam_SQ(const dbset_t *dbs) {
     int i, j;
     for (i = 0; i < dbs->count; ++i) {
         seq_t *s = dbs->bns[i];
-        for (j = 0; j < s->bns->n_seqs; ++j)
-            printf("@SQ\tSN:%s\tLN:%d\n", 
-                s->bns->anns[j].name, s->bns->anns[j].len);
+        for (j = 0; j < s->bns->n_seqs; ++j) {
+            if (!s->mappings || s->mappings[j] == NULL) {
+                printf("@SQ\tSN:%s\tLN:%d\n",
+                    s->bns->anns[j].name, s->bns->anns[j].len);
+            }
+        }
     }
     if (bwa_rg_line) printf("%s\n", bwa_rg_line);
 }
