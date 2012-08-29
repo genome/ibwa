@@ -158,10 +158,11 @@ static int infer_isize(int n_seqs, bwa_seq_t *seqs[2], isize_info_t *ii, double 
 	return 0;
 }
 
-static uint64_t __remap(const uint64_t pos, uint64_t len, uint32_t gap, const bwtdb_t *db, const bwtdb_t *target, int32_t *seqid, int *identical) {
+static uint64_t __remap(const uint64_t pos, uint64_t len, int strand, uint32_t gap, const bwtdb_t *db, const bwtdb_t *target, int32_t *seqid, int *identical) {
 	uint64_t x;
     const read_mapping_t *m;
     uint64_t relpos = pos;
+    uint64_t shift = 0;
 
 	if (!db->bns->remap) {/* not all sequences need remapping */
 		*seqid = -1;
@@ -169,7 +170,7 @@ static uint64_t __remap(const uint64_t pos, uint64_t len, uint32_t gap, const bw
 	}
 
 	/* get the position relative to the particular sequence it is from */
-	x = bwa_remap_position(db->bns, target->bns->bns, pos - db->offset, seqid);
+	x = bwa_remap_position(db->bns, target->bns->bns, pos - db->offset+shift, seqid);
     m = &db->bns->mappings[*seqid]->map;
     relpos = pos - db->offset - db->bns->bns->anns[*seqid].offset;
     *identical = is_remapped_sequence_identical(m, relpos > gap ? relpos - gap : 0, len + gap);
@@ -186,7 +187,7 @@ static uint64_t __remap(const uint64_t pos, uint64_t len, uint32_t gap, const bw
 		(p)->dbidx = (_dbidx); \
 		(p)->remapped_dbidx = 0; \
 		if ((opt_remap)) { \
-			(p)->remapped_pos = __remap((p)->pos, len, gap, db, (dbs)->db[0], &(p)->remapped_seqid, &(p)->remap_identical); \
+			(p)->remapped_pos = __remap((p)->pos, len, (p)->strand, gap, db, (dbs)->db[0], &(p)->remapped_seqid, &(p)->remap_identical); \
 		} else { \
 			(p)->remapped_pos = (p)->pos; \
 			(p)->remapped_seqid = -1; \
