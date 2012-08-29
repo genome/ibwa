@@ -57,9 +57,14 @@ void compute_seq_coords_and_counts(
     bwa_seq_t** p
     )
 {
+    struct db_and_score {
+        int dbidx;
+        int score;
+    };
+
     out_arr->n = 0;
     for (int j = 0; j < 2; ++j) {
-        map<uint64_t, int> pos2score;
+        map<uint64_t, alignment_t*> pos2score;
         int min_score = numeric_limits<int>::max();
         for (unsigned k = 0; k < aln[j].n; ++k) {
             alignment_t *ar = &aln[j].a[k];
@@ -67,11 +72,14 @@ void compute_seq_coords_and_counts(
 
             bwtint_t l;
             if (ar->aln.l - ar->aln.k + 1 >= MIN_HASH_WIDTH) { // then check hash table
+                bwtdb_t* db = dbs->db[ar->dbidx];
                 /* TODO: cache remappings */
                 poslist_t pos = bwtdb_cached_sa2seq(dbs->db[ar->dbidx], &ar->aln, p[j]->len);
                 for (l = 0; l < pos.n; ++l) {
                     position_t alnpos = {0};
                     alnpos.pos = pos.a[l];
+                    if (alnpos.pos < db->offset || alnpos.pos >= db->offset + db->bns->bns->l_pac)
+                        continue;
                     alnpos.len = p[j]->len;
                     alnpos.n_gape = ar->aln.n_gape;
                     alnpos.n_gapo = ar->aln.n_gapo;
@@ -80,16 +88,19 @@ void compute_seq_coords_and_counts(
                     alnpos.idx_and_end = k<<1 | j;
                     kv_push(position_t, *out_arr, alnpos);
 
-                    auto inserted = pos2score.insert(make_pair(alnpos.remapped_pos, ar->aln.score));
+                    auto inserted = pos2score.insert(make_pair(alnpos.remapped_pos, ar));
                     if (!inserted.second) {
-                        if (ar->aln.score < inserted.first->second)
-                            inserted.first->second = ar->aln.score;
+                        if (ar->aln.score < inserted.first->second->aln.score)
+                            inserted.first->second = ar;
                     }
                 }
             } else { // then calculate on the fly
+                bwtdb_t* db = dbs->db[ar->dbidx];
                 for (l = ar->aln.k; l <= ar->aln.l; ++l) {
                     position_t alnpos = {0};
-                    alnpos.pos = bwtdb_sa2seq(dbs->db[ar->dbidx], ar->aln.a, l, p[j]->len);
+                    alnpos.pos = bwtdb_sa2seq(db, ar->aln.a, l, p[j]->len);
+                    if (alnpos.pos < db->offset || alnpos.pos >= db->offset + db->bns->bns->l_pac)
+                        continue;
                     alnpos.len = p[j]->len;
                     alnpos.n_gape = ar->aln.n_gape;
                     alnpos.n_gapo = ar->aln.n_gapo;
@@ -97,23 +108,28 @@ void compute_seq_coords_and_counts(
                     remap(&alnpos, dbs, ar->dbidx, do_remap);
                     alnpos.idx_and_end = k<<1 | j;
                     kv_push(position_t, *out_arr, alnpos);
-                    auto inserted = pos2score.insert(make_pair(alnpos.remapped_pos, ar->aln.score));
+                    auto inserted = pos2score.insert(make_pair(alnpos.remapped_pos, ar));
                     if (!inserted.second) {
-                        if (ar->aln.score < inserted.first->second)
-                            inserted.first->second = ar->aln.score;
+                        if (ar->aln.score < inserted.first->second->aln.score)
+                            inserted.first->second = ar;
                     }
                 }
             }
         }
 
-        size_t optimalCount(0);
+        size_t totalReadCounts[2] = {0};
+        size_t primaryReadCounts[2] = {0};
         for (auto i = pos2score.begin(); i != pos2score.end(); ++i) {
-            if (i->second == min_score)
-                ++optimalCount;
+            int idx = i->second->aln.score == min_score ? 0 : 1;
+            ++totalReadCounts[idx];
+            if (i->second->dbidx == 0)
+                ++primaryReadCounts[idx];
         }
 
-        p[j]->c1 = optimalCount;
-        p[j]->c2 = pos2score.size() - optimalCount;
+        if ((p[j]->c1 = primaryReadCounts[0]) == 0)
+            p[j]->c1 = totalReadCounts[0];
+
+        p[j]->c2 = primaryReadCounts[1];
         if (p[j]->c1 != 0)
             p[j]->type = p[j]->c1 > 1 ? BWA_TYPE_REPEAT : BWA_TYPE_UNIQUE;
     }
