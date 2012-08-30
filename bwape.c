@@ -101,6 +101,11 @@ static int infer_isize(int n_seqs, bwa_seq_t *seqs[2], isize_info_t *ii, double 
     uint64_t x, *isizes, n_ap = 0;
     int n, i, tot, p25, p75, p50, max_len = 1, tmp;
     double skewness = 0.0, kurtosis = 0.0, y;
+    uint64_t rej_len = {0};
+    uint64_t rej_len_sqr = {0};
+    uint64_t rej_amQ[2] = {0};
+    uint64_t rej_amQ_sqr[2] = {0};
+    int nRej = 0;
 
     ii->avg = ii->std = -1.0;
     ii->low = ii->high = ii->high_bayesian = 0;
@@ -108,13 +113,36 @@ static int infer_isize(int n_seqs, bwa_seq_t *seqs[2], isize_info_t *ii, double 
     for (i = 0, tot = 0; i != n_seqs; ++i) {
         bwa_seq_t *p[2];
         p[0] = seqs[0] + i; p[1] = seqs[1] + i;
-        if (p[0]->mapQ >= 20 && p[1]->mapQ >= 20) {
-            x = (p[0]->pos < p[1]->pos)? p[1]->pos + p[1]->len - p[0]->pos : p[0]->pos + p[0]->len - p[1]->pos;
-            if (x < 100000) isizes[tot++] = x;
+        x = (p[0]->pos < p[1]->pos)? p[1]->pos + p[1]->len - p[0]->pos : p[0]->pos + p[0]->len - p[1]->pos;
+        if (p[0]->mapQ >= 20 && p[1]->mapQ >= 20 && x < 100000) {
+            //x = (p[0]->pos < p[1]->pos)? p[1]->pos + p[1]->len - p[0]->pos : p[0]->pos + p[0]->len - p[1]->pos;
+            //if (x < 100000) isizes[tot++] = x;
+            isizes[tot++] = x;
+        } else {
+            ++nRej;
+            rej_amQ[0] += p[0]->mapQ;
+            rej_amQ_sqr[0] += p[0]->mapQ * p[0]->mapQ;
+            rej_amQ[1] += p[1]->mapQ;
+            rej_amQ_sqr[1] += p[1]->mapQ * p[1]->mapQ;
+            rej_len += x;
+            rej_len_sqr += x*x;
         }
         if (p[0]->len > max_len) max_len = p[0]->len;
         if (p[1]->len > max_len) max_len = p[1]->len;
     }
+    fprintf(stderr, "[infer_isize] rejected pair statistics:\n");
+    fprintf(stderr, "[infer_isize]  total rejected pairs: %d\n", nRej);
+    for (i = 0; i < 2; ++i) {
+        double mean = rej_amQ[i] / (double)nRej;
+        double stddev = sqrt(rej_amQ_sqr[i] / (double)nRej - mean*mean);
+        fprintf(stderr, "[infer_isize]  rejected mapq read %d: mean: %f, std: %f\n", i, mean, stddev);
+    }
+    {
+        double mean = rej_len/(double)nRej;
+        double stddev = sqrt(rej_len_sqr/(double)nRej - mean*mean);
+        fprintf(stderr, "[infer_isize]  rejected insert size: mean: %f, std: %f\n", mean, stddev);
+    }
+
     if (tot < 20) {
         fprintf(stderr, "[infer_isize] fail to infer insert size: too few good pairs\n");
         free(isizes);
@@ -266,6 +294,9 @@ static void bwa_cal_pac_pos_pe_thread(uint32_t idx, uint32_t size, void *data)
 
 static void select_sai_ibwa(dbset_t* dbs, const alngrp_t *ag, bwa_seq_t *s, int *main_idx, int max_diff, int remapping) {
     int i, cnt, best;
+    size_t totalAlnCounts[2] = {0};
+    size_t primaryAlnCounts[2] = {0};
+
     if (ag->n == 0) {
         UNMAP_READ(s);
         return;
@@ -279,16 +310,35 @@ static void select_sai_ibwa(dbset_t* dbs, const alngrp_t *ag, bwa_seq_t *s, int 
         best = ag->a[0].aln.score;
         for (i = cnt = 0; i < ag->n; ++i) {
             const bwt_aln1_t *p = &ag->a[i].aln;
+            int naln = p->l - p->k + 1;
             if (p->score > best) break;
             if (drand48() * (p->l - p->k + 1 + cnt) > (double)cnt) {
                 *main_idx = i;
                 rngCache = drand48();
             }
-            cnt += p->l - p->k + 1;
+            cnt += naln;
+            totalAlnCounts[0] += naln;
+            if (ag->a[i].dbidx == 0)
+                primaryAlnCounts[0] += naln;
         }
         group_start = *main_idx;
         topEnd = i;
+    
         s->c1 = cnt;
+        for (i = topEnd; i < ag->n; ++i) {
+            int naln = ag->a[i].aln.l - ag->a[i].aln.k + 1; 
+            cnt += naln;
+            totalAlnCounts[0] += naln;
+            if (ag->a[i].dbidx == 0)
+                primaryAlnCounts[0] += naln;
+        }
+
+        if ((s->c1 = primaryAlnCounts[0]) == 0)
+            s->c1 = totalAlnCounts[0];
+
+        s->c2 = primaryAlnCounts[1];
+        if (s->c1 != 0)
+            s->type = s->c1 > 1 ? BWA_TYPE_REPEAT : BWA_TYPE_UNIQUE;
 
         do {
             alignment_t *main_aln = ag->a + *main_idx;
@@ -324,9 +374,6 @@ static void select_sai_ibwa(dbset_t* dbs, const alngrp_t *ag, bwa_seq_t *s, int 
             return;
         }
 
-        for (i = topEnd; i < ag->n; ++i) cnt += ag->a[i].aln.l - ag->a[i].aln.k + 1;
-        s->c2 = cnt - s->c1;
-        s->type = s->c1 > 1? BWA_TYPE_REPEAT : BWA_TYPE_UNIQUE;
         s->seQ = s->mapQ = bwa_approx_mapQ(s, max_diff);
     }
 }
