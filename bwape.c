@@ -300,11 +300,11 @@ static void select_sai_ibwa(dbset_t* dbs, const alngrp_t *ag, bwa_seq_t *s, int 
 
             do {
                 s->sa = p->k + aidx;
+                s->n_mm = p->n_mm; s->n_gapo = p->n_gapo; s->n_gape = p->n_gape; s->strand = p->a;
+                s->score = p->score;
                 s->pos = bwtdb_sa2seq(dbs->db[main_aln->dbidx], s->strand, s->sa, s->len);
                 remap(s, dbs, main_aln->dbidx, remapping, &remap_status);
                 if (remap_status == 1) {
-                    s->n_mm = p->n_mm; s->n_gapo = p->n_gapo; s->n_gape = p->n_gape; s->strand = p->a;
-                    s->score = p->score;
                     selected = 1;
                     break;
                 } else {
