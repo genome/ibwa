@@ -262,6 +262,7 @@ uint32_t dbset_extract_remapped(const dbset_t *dbs, seq_t **seqs, uint32_t dbidx
     bwtdb_t *db = dbs->db[dbidx];
     uint64_t seq_begin;
     uint32_t total = 0;
+    int status;
     bntann1_t *ann;
 
     if (seqid < 0 || !db->bns->remap) {
@@ -272,10 +273,10 @@ uint32_t dbset_extract_remapped(const dbset_t *dbs, seq_t **seqs, uint32_t dbidx
     seq_begin = db->offset + ann->offset;
 
     if (beg < seq_begin) {
-        uint64_t remapped_begin = bwa_remap_position_with_seqid(db->bns, dbs->db[0]->bns->bns, ann->offset, seqid);
+        uint64_t remapped_begin = bwa_remap_position_with_seqid(db->bns, dbs->db[0]->bns->bns, ann->offset, seqid, &status);
         uint64_t sublen = seq_begin - beg;
         uint64_t offset = remapped_begin - sublen;
-        if (sublen > remapped_begin)
+        if (sublen > remapped_begin || status == 0)
             err_fatal(__func__, "request too far ahead of remapped region");
         total += dbset_extract_sequence(dbs, seqs, &ref_seq[total], offset, sublen);
     }
@@ -288,7 +289,10 @@ uint32_t dbset_extract_remapped(const dbset_t *dbs, seq_t **seqs, uint32_t dbidx
     }
 
     if (total < len) {
-        uint64_t remapped_end = bwa_remap_position_with_seqid(db->bns, dbs->db[0]->bns->bns, ann->offset + ann->len-1, seqid)+1;
+        uint64_t remapped_end = bwa_remap_position_with_seqid(db->bns, dbs->db[0]->bns->bns, ann->offset + ann->len-1, seqid, &status)+1;
+        if (status == 0) {
+            err_fatal(__func__, "request too far ahead of remapped region");
+        }
         total += dbset_extract_sequence(dbs, seqs, &ref_seq[total], remapped_end, len-total);
     }
 

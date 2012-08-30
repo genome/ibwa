@@ -41,8 +41,8 @@ extern "C" {
     // int remap_read_coordinates(const read_mapping_t *m, uint32_t *remapped, uint32_t len);
     int remap_cigar(const char *cigar, uint32_t *result, uint32_t pos, uint32_t seqlen);
 
-    uint64_t bwa_remap_position(const seq_t* bns, const bntseq_t* target, uint64_t pac_coor, int32_t *seqid);
-    uint64_t bwa_remap_position_with_seqid(const seq_t* bns, const bntseq_t* target, uint64_t pac_coor, int32_t seqid);
+    uint64_t bwa_remap_position(const seq_t* bns, const bntseq_t* target, uint64_t pac_coor, int32_t *seqid, int *status);
+    uint64_t bwa_remap_position_with_seqid(const seq_t* bns, const bntseq_t* target, uint64_t pac_coor, int32_t seqid, int *status);
     int update_cigar(bwa_seq_t* seq, uint32_t pos, const seq_t* bns);
 
 #ifdef __cplusplus

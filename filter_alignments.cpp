@@ -12,18 +12,19 @@
 using namespace std;
 
 namespace {
-    static uint64_t __remap(const uint64_t pos, uint64_t len, uint32_t gap, const bwtdb_t *db, const bwtdb_t *target, int32_t *seqid, int *identical) {
+    static uint64_t __remap(const uint64_t pos, uint64_t len, uint32_t gap, const bwtdb_t *db, const bwtdb_t *target, int32_t *seqid, int *identical, int *status) {
         uint64_t x;
         const read_mapping_t *m;
         uint64_t relpos = pos;
 
         if (!db->bns->remap) {/* not all sequences need remapping */
             *seqid = -1;
+            *status = 1;
             return pos;
         }
 
         /* get the position relative to the particular sequence it is from */
-        x = bwa_remap_position(db->bns, target->bns->bns, pos - db->offset, seqid);
+        x = bwa_remap_position(db->bns, target->bns->bns, pos - db->offset, seqid, status);
         m = &db->bns->mappings[*seqid]->map;
         relpos = pos - db->offset - db->bns->bns->anns[*seqid].offset;
         *identical = is_remapped_sequence_identical(m, relpos > gap ? relpos - gap : 0, len + gap);
@@ -34,14 +35,14 @@ namespace {
 
 /* TODO: currently, the remapped dbidx is hard coded as 0, might want to change that in the future
  * to allow remappings to things other than the primary sequence */
-#define remap(p, dbs, _dbidx, opt_remap) do { \
+#define remap(p, dbs, _dbidx, opt_remap, status) do { \
         uint64_t gap = (p)->n_gapo + (p)->n_gape; \
         uint64_t len = (p)->len; \
 		const bwtdb_t *db = (dbs)->db[(_dbidx)]; \
 		(p)->dbidx = (_dbidx); \
 		(p)->remapped_dbidx = 0; \
 		if ((opt_remap)) { \
-			(p)->remapped_pos = __remap((p)->pos, len, gap, db, (dbs)->db[0], &(p)->remapped_seqid, &(p)->remap_identical); \
+			(p)->remapped_pos = __remap((p)->pos, len, gap, db, (dbs)->db[0], &(p)->remapped_seqid, &(p)->remap_identical, status); \
 		} else { \
 			(p)->remapped_pos = (p)->pos; \
 			(p)->remapped_seqid = -1; \
@@ -69,6 +70,7 @@ void compute_seq_coords_and_counts(
         for (unsigned k = 0; k < aln[j].n; ++k) {
             alignment_t *ar = &aln[j].a[k];
             min_score = std::min(min_score, ar->aln.score);
+            int remap_status = 0;
 
             bwtint_t l;
             if (ar->aln.l - ar->aln.k + 1 >= MIN_HASH_WIDTH) { // then check hash table
@@ -84,7 +86,10 @@ void compute_seq_coords_and_counts(
                     alnpos.n_gape = ar->aln.n_gape;
                     alnpos.n_gapo = ar->aln.n_gapo;
                     alnpos.score = ar->aln.score;
-                    remap(&alnpos, dbs, ar->dbidx, do_remap);
+                    remap(&alnpos, dbs, ar->dbidx, do_remap, &remap_status);
+                    if (!remap_status)
+                        continue;
+
                     alnpos.idx_and_end = k<<1 | j;
                     kv_push(position_t, *out_arr, alnpos);
 
@@ -105,7 +110,10 @@ void compute_seq_coords_and_counts(
                     alnpos.n_gape = ar->aln.n_gape;
                     alnpos.n_gapo = ar->aln.n_gapo;
                     alnpos.score = ar->aln.score;
-                    remap(&alnpos, dbs, ar->dbidx, do_remap);
+                    remap(&alnpos, dbs, ar->dbidx, do_remap, &remap_status);
+                    if (!remap_status)
+                        continue;
+                    
                     alnpos.idx_and_end = k<<1 | j;
                     kv_push(position_t, *out_arr, alnpos);
                     auto inserted = pos2score.insert(make_pair(alnpos.remapped_pos, ar));

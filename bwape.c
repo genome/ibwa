@@ -46,6 +46,14 @@ KSORT_INIT_GENERIC(uint64_t)
 
 #define MIN_HASH_WIDTH 1000
 
+#define UNMAP_READ(s) \
+    do { \
+        (s)->type = BWA_TYPE_NO_MATCH; \
+        (s)->pos = (s)->remapped_pos = (s)->sa = (s)->c1 = (s)->c2 = 0; \
+    } while (0)
+
+
+
 extern int g_log_n[256]; // in bwase.c
 
 void bwase_initialize();
@@ -158,19 +166,19 @@ static int infer_isize(int n_seqs, bwa_seq_t *seqs[2], isize_info_t *ii, double 
 	return 0;
 }
 
-static uint64_t __remap(const uint64_t pos, uint64_t len, int strand, uint32_t gap, const bwtdb_t *db, const bwtdb_t *target, int32_t *seqid, int *identical) {
+static uint64_t __remap(const uint64_t pos, uint64_t len, int strand, uint32_t gap, const bwtdb_t *db, const bwtdb_t *target, int32_t *seqid, int *identical, int *status) {
 	uint64_t x;
     const read_mapping_t *m;
     uint64_t relpos = pos;
-    uint64_t shift = 0;
 
 	if (!db->bns->remap) {/* not all sequences need remapping */
 		*seqid = -1;
+        *status = 1;
 		return pos;
 	}
 
 	/* get the position relative to the particular sequence it is from */
-	x = bwa_remap_position(db->bns, target->bns->bns, pos - db->offset+shift, seqid);
+	x = bwa_remap_position(db->bns, target->bns->bns, pos - db->offset, seqid, status);
     m = &db->bns->mappings[*seqid]->map;
     relpos = pos - db->offset - db->bns->bns->anns[*seqid].offset;
     *identical = is_remapped_sequence_identical(m, relpos > gap ? relpos - gap : 0, len + gap);
@@ -180,14 +188,14 @@ static uint64_t __remap(const uint64_t pos, uint64_t len, int strand, uint32_t g
 
 /* TODO: currently, the remapped dbidx is hard coded as 0, might want to change that in the future
  * to allow remappings to things other than the primary sequence */
-#define remap(p, dbs, _dbidx, opt_remap) do { \
+#define remap(p, dbs, _dbidx, opt_remap, status) do { \
         uint64_t gap = (p)->n_gapo + (p)->n_gape; \
         uint64_t len = (p)->len; \
 		const bwtdb_t *db = (dbs)->db[(_dbidx)]; \
 		(p)->dbidx = (_dbidx); \
 		(p)->remapped_dbidx = 0; \
 		if ((opt_remap)) { \
-			(p)->remapped_pos = __remap((p)->pos, len, (p)->strand, gap, db, (dbs)->db[0], &(p)->remapped_seqid, &(p)->remap_identical); \
+			(p)->remapped_pos = __remap((p)->pos, len, (p)->strand, gap, db, (dbs)->db[0], &(p)->remapped_seqid, &(p)->remap_identical, (status)); \
 		} else { \
 			(p)->remapped_pos = (p)->pos; \
 			(p)->remapped_seqid = -1; \
@@ -256,6 +264,72 @@ static void bwa_cal_pac_pos_pe_thread(uint32_t idx, uint32_t size, void *data)
 	kv_destroy(arr);
 }
 
+static void select_sai_ibwa(dbset_t* dbs, const alngrp_t *ag, bwa_seq_t *s, int *main_idx, int max_diff, int remapping) {
+    int i, cnt, best;
+    if (ag->n == 0) {
+        UNMAP_READ(s);
+        return;
+    }
+
+    if (main_idx) {
+        int topEnd;
+        int group_start;
+        int selected = 0;
+        double rngCache = 0.0;
+        best = ag->a[0].aln.score;
+        for (i = cnt = 0; i < ag->n; ++i) {
+            const bwt_aln1_t *p = &ag->a[i].aln;
+            if (p->score > best) break;
+            if (drand48() * (p->l - p->k + 1 + cnt) > (double)cnt) {
+                *main_idx = i;
+                rngCache = drand48();
+            }
+            cnt += p->l - p->k + 1;
+        }
+        group_start = *main_idx;
+        topEnd = i;
+
+        do {
+            alignment_t *main_aln = ag->a + *main_idx;
+            const bwt_aln1_t *p = &main_aln->aln;
+            int remap_status = 0;
+            int num_alignments = p->l - p->k + 1;
+            bwtint_t alignment_start_index = (bwtint_t)(rngCache * num_alignments);
+            bwtint_t aidx = alignment_start_index;
+
+            do {
+                s->sa = p->k + aidx;
+                s->pos = bwtdb_sa2seq(dbs->db[main_aln->dbidx], s->strand, s->sa, s->len);
+                remap(s, dbs, main_aln->dbidx, remapping, &remap_status);
+                if (remap_status == 1) {
+                    s->seQ = s->mapQ = bwa_approx_mapQ(s, max_diff);
+                    s->n_mm = p->n_mm; s->n_gapo = p->n_gapo; s->n_gape = p->n_gape; s->strand = p->a;
+                    s->score = p->score;
+                    selected = 1;
+                    break;
+                } else {
+                    --cnt;
+                }
+                if (++aidx >= num_alignments)
+                    aidx = 0;
+            } while (aidx != alignment_start_index);
+
+            if (++i >= topEnd)
+                i = 0;
+        } while (i != group_start);
+
+        if (!selected) {
+            UNMAP_READ(s);
+            return;
+        }
+
+        s->c1 = cnt;
+        for (i = topEnd; i < ag->n; ++i) cnt += ag->a[i].aln.l - ag->a[i].aln.k + 1;
+        s->c2 = cnt - s->c1;
+        s->type = s->c1 > 1? BWA_TYPE_REPEAT : BWA_TYPE_UNIQUE;
+    }
+}
+
 int bwa_cal_pac_pos_pe(dbset_t *dbs, int n_seqs, bwa_seq_t *seqs[2], saiset_t *saiset, isize_info_t *ii,
 					   const pe_opt_t *opt, const gap_opt_t *gopt, const isize_info_t *last_ii)
 {
@@ -271,14 +345,16 @@ int bwa_cal_pac_pos_pe(dbset_t *dbs, int n_seqs, bwa_seq_t *seqs[2], saiset_t *s
 		bwa_seq_t *p[2];
 		for (j = 0; j < 2; ++j) {
 			int main_idx = 0;
+            int max_diff = gopt->fnr > 0.0? bwa_cal_maxdiff(p[j]->len, BWA_AVG_ERR, gopt->fnr) : gopt->max_diff;
 			p[j] = seqs[j] + i;
 			p[j]->n_multi = 0;
 			p[j]->extra_flag |= SAM_FPD | (j == 0? SAM_FR1 : SAM_FR2);
 			aln_buf[j][i] = alngrp_create(dbs, saiset, j);
 
 			// generate SE alignment and mapping quality
-			select_sai(aln_buf[j][i], p[j], &main_idx);
+			select_sai_ibwa(dbs, aln_buf[j][i], p[j], &main_idx, max_diff, opt->remapping);
 
+/* // MOVED to select_sai_ibwa
 			if (p[j]->type == BWA_TYPE_UNIQUE || p[j]->type == BWA_TYPE_REPEAT) {
 				alignment_t *main_aln = &aln_buf[j][i]->a[main_idx];
 				int max_diff = gopt->fnr > 0.0? bwa_cal_maxdiff(p[j]->len, BWA_AVG_ERR, gopt->fnr) : gopt->max_diff;
@@ -287,6 +363,7 @@ int bwa_cal_pac_pos_pe(dbset_t *dbs, int n_seqs, bwa_seq_t *seqs[2], saiset_t *s
 				p[j]->seQ = p[j]->mapQ = bwa_approx_mapQ(p[j], max_diff);
 
 			}
+*/
 		}
 	}
 
@@ -379,7 +456,12 @@ void bwa_sai2sam_pe_core(pe_inputs_t* inputs, pe_opt_t *popt)
 			bwa_refine_gapped(dbs, n_seqs, seqs[j]);
             /* refine_gapped changes pos, so we might need to update remapped_pos */
             for (i = 0; i < n_seqs; ++i) {
-				remap(&seqs[j][i], dbs, seqs[j][i].dbidx, popt->remapping);
+                int status = 0;
+				remap(&seqs[j][i], dbs, seqs[j][i].dbidx, popt->remapping, &status);
+                if (status) {
+                    fprintf(stderr, "Failed to remap read %s after refining gaps.\n", seqs[j][i].name);
+                    UNMAP_READ(&seqs[j][i]);
+                }
             }
         }
 

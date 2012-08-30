@@ -60,7 +60,7 @@ int load_remappings(seq_t* seq, const char* path) {
     while (!in.eof()) {
         ++lineNum;
         if (line[0] != '>') {
-            fprintf(stderr, 
+            fprintf(stderr,
                 "Unexpected character '%c' at start of line %ld in "
                 "file '%s'. Expected '>'.\n", line[0], lineNum, path);
             return -1;
@@ -96,7 +96,7 @@ int read_mapping_extract(const char *str, read_mapping_t *m) {
     if (!can_remap(str))
         return 0;
 
-    beg = strchr(const_cast<char*>(str), '-'); 
+    beg = strchr(const_cast<char*>(str), '-');
     if (beg == 0)
         return 0;
     ++beg;
@@ -263,23 +263,26 @@ int remap_cigar(const char *cigar, uint32_t *result, uint32_t pos, uint32_t seql
         fprintf(stderr, "failed to parse cigar string '%s'\n", cigar);
         return 0;
     }
-    
+
     return 1;
 }
 
-uint64_t bwa_remap_position(const seq_t* bns, const bntseq_t* tgtbns, uint64_t pac_coor, int32_t* seqid) {
+uint64_t bwa_remap_position(const seq_t* bns, const bntseq_t* tgtbns, uint64_t pac_coor, int32_t* seqid, int *status) {
     *seqid = bns_seq_for_pos(bns->bns, pac_coor);
-    return bwa_remap_position_with_seqid(bns, tgtbns, pac_coor, *seqid); 
+    return bwa_remap_position_with_seqid(bns, tgtbns, pac_coor, *seqid, status);
 }
 
 /* looking up the seqid is expensive. bwa_remap_position allows the value to be stored and then
  * ..._with_seqid can be used later. */
-uint64_t bwa_remap_position_with_seqid(const seq_t* bns, const bntseq_t* tgtbns, uint64_t pac_coor, int32_t seqid) {
+uint64_t bwa_remap_position_with_seqid(const seq_t* bns, const bntseq_t* tgtbns, uint64_t pac_coor, int32_t seqid, int *status) {
     uint32_t rv = 0;
     int32_t target_idx = 0;
     const read_mapping_t *m = &bns->mappings[seqid]->map;
+
+    *status = 0;
     if (!m)
         err_fatal(__func__, "No read mapping for sequence id %d\n", seqid);
+
 
     target_idx = bns_seq_by_name(tgtbns, m->seqname);
     if (target_idx < 0)
@@ -289,8 +292,10 @@ uint64_t bwa_remap_position_with_seqid(const seq_t* bns, const bntseq_t* tgtbns,
     if (!m->exact) {
         uint32_t offset = 0;
         uint32_t altpos = pac_coor - bns->bns->anns[seqid].offset;
-        if (!remap_cigar(m->cigar, &offset, altpos, bns->bns->anns[seqid].len))
-            err_fatal(__func__, "Failed to remap coordinates");
+        if (!remap_cigar(m->cigar, &offset, altpos, bns->bns->anns[seqid].len)) {
+            fprintf(stderr, "Failed to remap coordinates to %s (coord=%lu)", bns->bns->anns[seqid].name, pac_coor);
+            return 0;
+        }
 
         rv = m->start + offset;
     } else {
@@ -301,5 +306,6 @@ uint64_t bwa_remap_position_with_seqid(const seq_t* bns, const bntseq_t* tgtbns,
         err_fatal(__func__, "remapped position out of range (%u should be in [%u, %u])\n", rv, m->start, m->stop);
     }
 
+    *status = 1;
     return rv + tgtbns->anns[target_idx].offset;
 }
