@@ -258,7 +258,7 @@ struct CigarTranslator {
             if (read_len == 0)
                 read_advance();
 
-            if (OPS[read_op] == 'M' || OPS[read_op] == 'I')
+            if (OPS[read_op] == 'M' || OPS[read_op] == 'I' || OPS[read_op] == 'S')
                 cb.push(tr_seqop('S'), read_len);
             read_len = 0;
         }

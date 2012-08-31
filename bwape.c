@@ -50,6 +50,10 @@ KSORT_INIT_GENERIC(uint64_t)
     do { \
         (s)->type = BWA_TYPE_NO_MATCH; \
         (s)->pos = (s)->remapped_pos = (s)->sa = (s)->c1 = (s)->c2 = 0; \
+        if ((s)->cigar) { \
+            free((s)->cigar); \
+            (s)->cigar = NULL; \
+        } \
     } while (0)
 
 
@@ -352,7 +356,7 @@ static void select_sai_ibwa(dbset_t* dbs, const alngrp_t *ag, bwa_seq_t *s, int 
 
             if (++i >= topEnd)
                 i = 0;
-        } while (i != group_start);
+        } while (!selected && i != group_start);
 
         if (!selected) {
             UNMAP_READ(s);
