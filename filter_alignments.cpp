@@ -134,10 +134,8 @@ void compute_seq_coords_and_counts(
                 ++primaryReadCounts[idx];
         }
 
-        if ((p[j]->c1 = primaryReadCounts[0]) == 0)
-            p[j]->c1 = totalReadCounts[0];
-
-        p[j]->c2 = primaryReadCounts[1];
+        p[j]->c1 = totalReadCounts[0];
+        p[j]->c2 = totalReadCounts[1];
         if (p[j]->c1 != 0)
             p[j]->type = p[j]->c1 > 1 ? BWA_TYPE_REPEAT : BWA_TYPE_UNIQUE;
     }
