@@ -294,8 +294,6 @@ static void bwa_cal_pac_pos_pe_thread(uint32_t idx, uint32_t size, void *data)
 
 static void select_sai_ibwa(dbset_t* dbs, const alngrp_t *ag, bwa_seq_t *s, int *main_idx, int max_diff, int remapping) {
     int i, cnt, best;
-    size_t totalAlnCounts[2] = {0};
-    size_t primaryAlnCounts[2] = {0};
 
     if (ag->n == 0) {
         UNMAP_READ(s);
@@ -317,9 +315,6 @@ static void select_sai_ibwa(dbset_t* dbs, const alngrp_t *ag, bwa_seq_t *s, int 
                 rngCache = drand48();
             }
             cnt += naln;
-            totalAlnCounts[0] += naln;
-            if (ag->a[i].dbidx == 0)
-                primaryAlnCounts[0] += naln;
         }
         group_start = *main_idx;
         topEnd = i;
@@ -328,15 +323,8 @@ static void select_sai_ibwa(dbset_t* dbs, const alngrp_t *ag, bwa_seq_t *s, int 
         for (i = topEnd; i < ag->n; ++i) {
             int naln = ag->a[i].aln.l - ag->a[i].aln.k + 1; 
             cnt += naln;
-            totalAlnCounts[0] += naln;
-            if (ag->a[i].dbidx == 0)
-                primaryAlnCounts[0] += naln;
         }
-
-        if ((s->c1 = primaryAlnCounts[0]) == 0)
-            s->c1 = totalAlnCounts[0];
-
-        s->c2 = primaryAlnCounts[1];
+        s->c2 = cnt - s->c1;
         if (s->c1 != 0)
             s->type = s->c1 > 1 ? BWA_TYPE_REPEAT : BWA_TYPE_UNIQUE;
 
@@ -357,8 +345,6 @@ static void select_sai_ibwa(dbset_t* dbs, const alngrp_t *ag, bwa_seq_t *s, int 
                 if (remap_status == 1) {
                     selected = 1;
                     break;
-                } else {
-                    --cnt;
                 }
                 if (++aidx >= num_alignments)
                     aidx = 0;
