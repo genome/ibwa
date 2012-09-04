@@ -15,8 +15,8 @@ project(bwa)
 
 # Versioning ###############################################################
 set(UPSTREAM_VERSION 0.5.9)
-set(INTERNAL_VERSION_FULL  0.4.0)
-set(INTERNAL_VERSION_SHORT 0.4)
+set(INTERNAL_VERSION_FULL  0.5.0-alpha0)
+set(INTERNAL_VERSION_SHORT 0.5)
 
 # use these to created a versioned copy of the bwa binary, e.g., bwa-0.5.9
 set(EXE_VERSION_SUFFIX "-${UPSTREAM_VERSION}-${INTERNAL_VERSION_SHORT}")
@@ -102,12 +102,12 @@ if(${CMAKE_SIZEOF_VOID_P} MATCHES 8)
     set(ARCH "x86_64")
 endif ()
 
-set(CPACK_PACKAGE_VERSION ${INTERNAL_VERSION_FULL})
+set(CPACK_PACKAGE_VERSION "${INTERNAL_VERSION_FULL}")
 set(CPACK_PACKAGE_NAME "ibwa-${UPSTREAM_VERSION}-${INTERNAL_VERSION_SHORT}")
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "A sequence aligner based on the BWT.")
-set(CPACK_PACKAGE_VENDOR "Travis Abbott")
+set(CPACK_PACKAGE_VENDOR "TGI")
 #set(CPACK_PACKAGE_VERSION ${FULL_VERSION})
-set(CPACK_DEBIAN_PACKAGE_MAINTAINER "Travis Abbott <tabbott@genome.wustl.edu>>")
+set(CPACK_DEBIAN_PACKAGE_MAINTAINER "genome-dev <genome-dev@genome.wustl.edu>>")
 set(CPACK_SYSTEM_NAME "Linux-${ARCH}")
 set(CPACK_TOPLEVEL_TAG "Linux-${ARCH}")
 set(CPACK_DEBIAN_PACKAGE_SECTION science)
