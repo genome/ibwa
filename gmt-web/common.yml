@@ -9,7 +9,7 @@ menu:
       href: install.html
 
 module_details:
-    name: iBWA
+    name: iBWA Alpha
     icon: res/images/icon_48.png
     icon_16: res/images/icon_16.png
     exe_name: ibwa
