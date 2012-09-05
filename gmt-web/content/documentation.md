@@ -27,7 +27,7 @@ See the latest [BWA documentation](http://bio-bwa.sourceforge.net/bwa.shtml) for
 
 iBWA accepts reads in FASTQ and BAM format, and it can align to references in FASTA format. Remap files are required when using the `-R` option to enable compound sequence remapping.
 
-For instance, if a user has a reference FASTA named `base_ref.fa`, and has a second reference named `alternates.fa` that contains alternate sequences for `base_ref.fa`, a `alternates.fa.remap` file must also exist next to `patches.fa`.
+For instance, if a user has a reference FASTA named `primary_ref.fa`, and has a second reference named `alternates.fa` that contains alternate sequences for `primary_ref.fa`, a `alternates.fa.remap` file must also exist next to `patches.fa`.
 
 The remap file format is as follows:
 
