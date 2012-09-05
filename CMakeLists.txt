@@ -14,7 +14,7 @@ cmake_minimum_required(VERSION 2.6)
 project(bwa)
 
 # Versioning ###############################################################
-set(INTERNAL_VERSION_FULL 0.5.0~alpha0)
+set(INTERNAL_VERSION_FULL 0.5.0)
 set(INTERNAL_VERSION_SHORT 0.5)
 set(FULL_VERSION "${INTERNAL_VERSION_FULL}")
 configure_file(version.h.in version.h)
