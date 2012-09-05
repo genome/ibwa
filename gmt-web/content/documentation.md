@@ -59,7 +59,8 @@ The -R option enables iBWA's remapping mode. Each additional reference requires 
 ibwa sampe -R<br/>
     &nbsp;&nbsp;&nbsp; baseref.fa baseref_reads1.sai baseref_reads2.sai reads1.fq reads2.fq<br/>
     &nbsp;&nbsp;&nbsp; ref1.fa ref1_reads1.sai ref1_reads2.sai<br/>
-    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; . . .<br/>
+    &nbsp;&nbsp;&nbsp; ref2.fa ref2_reads1.sai ref2_reads2.sai<br/>
+    &nbsp;&nbsp;&nbsp; .&nbsp;.&nbsp;.<br/>
     &nbsp;&nbsp;&nbsp; refN.fa refN_reads1.sai refN_reads2.sai<br/>
     &nbsp;&nbsp;&nbsp; > aln.sam
 </p>
