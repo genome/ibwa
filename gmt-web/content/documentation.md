@@ -31,32 +31,35 @@ Align each input file agaisnt each references.
 <p class='terminal' markdown='1'>
 ibwa aln hs37lite.fa reads1.fq > hs37lite_reads1.sai<br/>
 ibwa aln hs37lite.fa reads2.fq > hs37lite_reads2.sai
-<p class='terminal' markdown='1'>
 </p>
+<p class='terminal' markdown='1'>
 ibwa aln hs37patch9.fa reads1.fq > hs37patch9_reads1.sai<br/>
 ibwa aln hs37patch9.fa reads2.fq > hs37patch9_reads2.sai
-<p class='terminal' markdown='1'>
 </p>
+<p class='terminal' markdown='1'>
 ibwa aln hs37dbsnp135cutoff5.fa reads1.fq > hs37dbsnp135cutoff5_reads1.sai<br/>
 ibwa aln hs37dbsnp135cutoff5.fa reads2.fq > hs37dbsnp135cutoff5_reads2.sai
 </p>
 
 ## STEP 3
-Run samse (for single-ended data) or sampe (for paired-end data) to generate a sam file .
+Run samse (for single-ended data) or sampe (for paired-end data) to generate a sam file.
 
 <p class='terminal' markdown='1'>
-ibwa sampe -R hs37lite.fa hs37lite_reads1.sai hs37lite_reads2.sai reads1.fq reads2.fq<br/>
+ibwa sampe -R<br/>
+    &nbsp;&nbsp;&nbsp; hs37lite.fa hs37lite_reads1.sai hs37lite_reads2.sai reads1.fq reads2.fq<br/>
     &nbsp;&nbsp;&nbsp; hs37patch9.fa hs37patch9_reads1.sai hs37patch9_reads2.sai<br/>
-    &nbsp;&nbsp;&nbsp; hs37dbsnp135cutoff5.fa hs37dbsnp135cutoff5_reads1.sai hs37dbsnp135cutoff5_reads2.sai<br/>
+    &nbsp;&nbsp;&nbsp; hs37dbsnp135cutoff5.fa hs37dbsnp135cutoff5_reads1.sai<br/>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; hs37dbsnp135cutoff5_reads2.sai<br/>
     &nbsp;&nbsp;&nbsp; > aln.sam
 </p>
 
 The -R option enables iBWA's remapping mode. Each additional reference requires the reference .fa, followed by the .sai files generated for that reference. More generally:
 
 <p class='terminal' markdown='1'>
-ibwa sampe -R baseref.fa baseref_reads1.sai baseref_reads2.sai reads1.fq reads2.fq<br/>
+ibwa sampe -R<br/>
+    &nbsp;&nbsp;&nbsp; baseref.fa baseref_reads1.sai baseref_reads2.sai reads1.fq reads2.fq<br/>
     &nbsp;&nbsp;&nbsp; ref1.fa ref1_reads1.sai ref1_reads2.sai<br/>
-    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ...<br/>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; . . .<br/>
     &nbsp;&nbsp;&nbsp; refN.fa refN_reads1.sai refN_reads2.sai<br/>
     &nbsp;&nbsp;&nbsp; > aln.sam
 </p>
@@ -69,7 +72,7 @@ iBWA - Iterative Burrows-Wheeler Alignment Tool
 
     ibwa aln ref.fa reads.fq > ref_reads.sai
 
-    ibwa sampe -R baseref.fa baseref_reads1.sai baseref_reads2.sai reads1.fq reads2.fq<br/>&nbsp;&nbsp;&nbsp;&nbsp; ref1.fa ref1_reads1.sai ref1_reads2.sai > aln.sam
+    ibwa sampe -R ref0.fa ref0_r1.sai ref0_r2.sai r1.fq r2.fq ref1.fa ref1_r1.sai ref1_r2.sai > aln.sam
 
 ## NOTES
 iBWA is a a fork of [Heng Li's BWA aligner](http://bio-bwa.sourceforge.net), with support for iteratively adding alternate haplotypes, patches, and variant hypotheses. For information about other BWA features, please see the [latest BWA documentation](http://bio-bwa.sourceforge.net/bwa.shtml).
