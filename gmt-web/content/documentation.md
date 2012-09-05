@@ -1,5 +1,3 @@
-# iBWA
-
 ## NAME
 iBWA - Iterative Burrows-Wheeler Alignment Tool
 
@@ -26,12 +24,10 @@ See the latest [BWA documentation](http://bio-bwa.sourceforge.net/bwa.shtml) for
 
 ---
 
-Please see below for detailed information about the iBWA commands.
-
 ## STEP 1
 Create aligner index for each reference fasta.
 
-<pre class='terminal' markdown='1'>
+<pre class='terminal'>
 ibwa index -a bwtsw hs37lite.fa
 ibwa index -a bwtsw hs37patch9.fa
 ibwa index -a bwtsw hs37dbsnp135cutoff5.fa
@@ -39,14 +35,14 @@ ibwa index -a bwtsw hs37dbsnp135cutoff5.fa
 
 If the reference fasta is less than 11,000,000 bytes, use the IS algorithm instead of BWT-SW algorithm:
 
-<pre class='terminal' markdown='1'>
+<pre class='terminal'>
 ibwa index -a is small_ref.fa
 </pre>
 
 ## STEP 2
 Align each input file to each references.
 
-<pre class='terminal' markdown='1'>
+<pre class='terminal'>
 ibwa aln hs37lite.fa reads1.fq > hs37lite_reads1.sai
 ibwa aln hs37lite.fa reads2.fq > hs37lite_reads2.sai
 
@@ -60,7 +56,7 @@ ibwa aln hs37dbsnp135cutoff5.fa reads2.fq > hs37dbsnp135cutoff5_reads2.sai
 ## STEP 3
 Run `samse` (for single-ended data) or `sampe` (for paired-end data) to generate a SAM file.
 
-<pre class='terminal' markdown='1'>
+<pre class='terminal'>
 ibwa sampe -R
     hs37lite.fa hs37lite_reads1.sai hs37lite_reads2.sai reads1.fq reads2.fq
     hs37patch9.fa hs37patch9_reads1.sai hs37patch9_reads2.sai
@@ -71,7 +67,7 @@ ibwa sampe -R
 
 The `-R` option enables iBWA's remapping mode. Each additional reference requires the `reference.fa`, followed by the `reads.sai` files generated for that reference. More generally:
 
-<pre class='terminal' markdown='1'>
+<pre class='terminal'>
 ibwa sampe -R
      baseref.fa baseref_reads1.sai baseref_reads2.sai reads1.fq reads2.fq
      ref1.fa ref1_reads1.sai ref1_reads2.sai
