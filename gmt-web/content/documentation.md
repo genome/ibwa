@@ -2,15 +2,16 @@
 iBWA - Iterative Burrows-Wheeler Alignment Tool
 
 ## SYNOPSIS
-<pre class='terminal'>ibwa index -a bwtsw ref.fa
+<pre class='terminal'>ibwa index -a bwtsw primary_ref.fa
+ibwa index -a bwtsw alt_ref.fa
 
-ibwa aln -b1 ref0.fa reads.bam > ref0_r1.sai
-ibwa aln -b2 ref0.fa reads.bam > ref0_r2.sai
-ibwa aln -b1 ref1.fa reads.bam > ref1_r1.sai
-ibwa aln -b2 ref1.fa reads.bam > ref1_r2.sai
+ibwa aln -b1 primary_ref.fa reads.bam > primary_ref_r1.sai
+ibwa aln -b2 primary_ref.fa reads.bam > primary_ref_r2.sai
+ibwa aln -b1 alt_ref.fa reads.bam > alt_ref_r1.sai
+ibwa aln -b2 alt_ref.fa reads.bam > alt_ref_r2.sai
 
-ibwa sampe -R ref0.fa ref0_r1.sai ref0_r2.sai reads.bam reads.bam
-    ref1.fa ref1_r1.sai ref1_r2.sai > output.sam</pre>
+ibwa sampe -R primary_ref.fa primary_ref_r1.sai primary_ref_r2.sai reads.bam reads.bam
+    alt_ref.fa alt_ref_r1.sai alt_ref_r2.sai > output.sam</pre>
 
 ## NOTES
 iBWA is a a fork of [Heng Li's BWA aligner](http://bio-bwa.sourceforge.net), with support for iteratively adding alternate haplotypes, patches, and variant hypotheses. For information about other BWA features, please see the [latest BWA documentation](http://bio-bwa.sourceforge.net/bwa.shtml).
@@ -31,7 +32,7 @@ For instance, if a user has a reference FASTA named `primary_ref.fa`, and has a 
 
 The remap file format is as follows:
 
-<pre class='terminal'>>seqid-chrom|start|stop
+<pre class='terminal'>&gt;>seqid-chrom|start|stop
 cigar</pre>
 
 * `seqid` is the sequence ID from alternates.fa
@@ -98,15 +99,15 @@ ibwa sampe -R
     > aln.sam
 </pre>
 
-The `-R` option enables iBWA's remapping mode. Each additional reference requires the `reference.fa`, followed by the `reads.sai` files generated for that reference. More generally:
+The `-R` option enables iBWA's remapping mode. Each alternate reference requires a `alt_ref.fa`, followed by the `alt_ref_reads.sai` files generated for that reference. More generally:
 
 <pre class='terminal'>
 ibwa sampe -R
-     baseref.fa baseref_reads1.sai baseref_reads2.sai reads1.fq reads2.fq
-     ref1.fa ref1_reads1.sai ref1_reads2.sai
-     ref2.fa ref2_reads1.sai ref2_reads2.sai
+     primary_ref.fa primary_ref_reads1.sai primary_ref_reads2.sai reads1.fq reads2.fq
+     alt_ref1.fa alt_ref1_reads1.sai alt_ref1_reads2.sai
+     alt_ref2.fa alt_ref2_reads1.sai alt_ref2_reads2.sai
      ...
-     refN.fa refN_reads1.sai refN_reads2.sai
+     alt_refN.fa alt_refN_reads1.sai alt_refN_reads2.sai
      > aln.sam
 </pre>
 
