@@ -1,4 +1,4 @@
-# Running BreakDancer
+# Running iBWA
 
 ***
 
