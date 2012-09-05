@@ -14,7 +14,7 @@ iBWA is a a fork of [Heng Li's BWA aligner](http://bio-bwa.sourceforge.net), wit
 
 ## COMMANDS AND OPTIONS
 <dl>
-<dt>`sampe -R`</dt>
+<dt markdown='1'>`sampe -R`</dt>
 <dd>enable compound sequence remapping</dd>
 </dl>
 
