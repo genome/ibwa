@@ -10,7 +10,8 @@ ibwa aln -b2 primary_ref.fa reads.bam > primary_ref_r2.sai
 ibwa aln -b1 alt_ref.fa reads.bam > alt_ref_r1.sai
 ibwa aln -b2 alt_ref.fa reads.bam > alt_ref_r2.sai
 
-ibwa sampe -R primary_ref.fa primary_ref_r1.sai primary_ref_r2.sai reads.bam reads.bam
+ibwa sampe -R primary_ref.fa primary_ref_r1.sai primary_ref_r2.sai
+    reads.bam reads.bam
     alt_ref.fa alt_ref_r1.sai alt_ref_r2.sai > output.sam</pre>
 
 ## NOTES
@@ -32,7 +33,7 @@ For instance, if a user has a reference FASTA named `primary_ref.fa`, and has a 
 
 The remap file format is as follows:
 
-<pre class='terminal'>&gt;>seqid-chrom|start|stop
+<pre class='terminal'>&gt;seqid-chrom|start|stop
 cigar</pre>
 
 * `seqid` is the sequence ID from alternates.fa
