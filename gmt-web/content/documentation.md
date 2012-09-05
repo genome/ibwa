@@ -59,8 +59,12 @@ This will create several index files next to the reference FASTA.
 There are two algorithms available. Specify `-a bwtsw` to use BWT-SW, and use `-a is` to use the IS algorithm. If the reference fasta is less than 11,000,000 bytes, use the IS algorithm.
 
 From the [BWA documentation](http://bio-bwa.sourceforge.net/bwa.shtml#3):
-    > *is* IS linear-time algorithm for constructing suffix array. It requires 5.37N memory where N is the size of the database. IS is moderately fast, but does not work with database larger than 2GB. IS is the default algorithm due to its simplicity. The current codes for IS algorithm are reimplemented by Yuta Mori.
-    > *bwtsw* Algorithm implemented in BWT-SW. This method works with the whole human genome, but it does not work with database smaller than 10MB and it is usually slower than IS. 
+<dl>
+<dt markdown='1'>`is`</dt>
+<dd>IS linear-time algorithm for constructing suffix array. It requires 5.37N memory where N is the size of the database. IS is moderately fast, but does not work with database larger than 2GB. IS is the default algorithm due to its simplicity. The current codes for IS algorithm are reimplemented by Yuta Mori.</dd>
+<dt markdown='1'>`bwtsw`</dt>
+<dd>Algorithm implemented in BWT-SW. This method works with the whole human genome, but it does not work with database smaller than 10MB and it is usually slower than IS.</dd>
+</dl>
 
 <pre class='terminal'>
 ibwa index -a is small_ref.fa
