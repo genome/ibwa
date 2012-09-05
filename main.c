@@ -1,16 +1,13 @@
 #include <stdio.h>
 #include <string.h>
 #include "main.h"
-
-#ifndef PACKAGE_VERSION
-#define PACKAGE_VERSION "0.5.9-0.4.0"
-#endif
+#include "version.h"
 
 static int usage()
 {
 	fprintf(stderr, "\n");
 	fprintf(stderr, "Program: ibwa (alignment via Burrows-Wheeler transformation)\n");
-	fprintf(stderr, "Version: %s\n", PACKAGE_VERSION);
+	fprintf(stderr, "Version: %s (%s)\n", __g_prog_version, __g_build_type);
 	fprintf(stderr, "Usage:   bwa <command> [options]\n\n");
 	fprintf(stderr, "Command: index         index sequences in the FASTA format\n");
 	fprintf(stderr, "         aln           gapped/ungapped alignment\n");
@@ -32,7 +29,7 @@ static int usage()
 
 void bwa_print_sam_PG()
 {
-	printf("@PG\tID:bwa\tPN:bwa\tVN:%s\n", PACKAGE_VERSION);
+	printf("@PG\tID:bwa\tPN:bwa\tVN:%s\n", __g_prog_version);
 }
 
 int main(int argc, char *argv[])

@@ -17,6 +17,9 @@ project(bwa)
 set(UPSTREAM_VERSION 0.5.9)
 set(INTERNAL_VERSION_FULL 0.5.0~alpha0)
 set(INTERNAL_VERSION_SHORT 0.5)
+set(FULL_VERSION "${UPSTREAM_VERSION}-${INTERNAL_VERSION_FULL}")
+configure_file(version.h.in version.h)
+include_directories(${PROJECT_BINARY_DIR})
 
 # use these to created a versioned copy of the bwa binary, e.g., bwa-0.5.9
 set(EXE_VERSION_SUFFIX "-${UPSTREAM_VERSION}-${INTERNAL_VERSION_SHORT}")
