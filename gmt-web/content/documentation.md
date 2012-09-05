@@ -29,11 +29,11 @@ ibwa index -a is small_ref.fa
 Align each input file agaisnt each references.
 
 <p class='terminal' markdown='1'>
-ibwa aln hs37lite.fa reads1.fq > hs37lite_reads1.sai
-ibwa aln hs37lite.fa reads2.fq > hs37lite_reads2.sai
-ibwa aln hs37patch9.fa reads1.fq > hs37patch9_reads1.sai
-ibwa aln hs37patch9.fa reads2.fq > hs37patch9_reads2.sai
-ibwa aln hs37dbsnp135cutoff5.fa reads1.fq > hs37dbsnp135cutoff5_reads1.sai
+ibwa aln hs37lite.fa reads1.fq > hs37lite_reads1.sai<br/>
+ibwa aln hs37lite.fa reads2.fq > hs37lite_reads2.sai<br/>
+ibwa aln hs37patch9.fa reads1.fq > hs37patch9_reads1.sai<br/>
+ibwa aln hs37patch9.fa reads2.fq > hs37patch9_reads2.sai<br/>
+ibwa aln hs37dbsnp135cutoff5.fa reads1.fq > hs37dbsnp135cutoff5_reads1.sai<br/>
 ibwa aln hs37dbsnp135cutoff5.fa reads2.fq > hs37dbsnp135cutoff5_reads2.sai
 </p>
 
@@ -65,7 +65,7 @@ ibwa - Iterative Burrows-Wheeler Alignment Tool
 ## NOTES
 A fork of [Heng Li's BWA aligner](http://bio-bwa.sourceforge.net), with support for iteratively adding alternate haplotypes, patches, and variant hypotheses.
 
-## OPTIONS
+## COMMANDS AND OPTIONS
 <dl>
 <dt>-R</dt>
 <dd>Enables remapping against multiple references.</dd>
