@@ -81,7 +81,7 @@ ibwa aln hs37dbsnp135cutoff5.fa reads2.fq > hs37dbsnp135cutoff5_reads2.sai
 
 The `-b` option is required to use BAM files as an input. The `-b1` and `-b2` options can be used to select paired end reads in a BAM file that contains both strands of paired end data. For a BAM file that contains both single and paired end reads, use `-b0` to specify that only single-end reads should be mapped. For instance:
 
-<pre class='terminal>
+<pre class='terminal'>
 ibwa aln hs37lite.fa -b1 allreads.bam > hs37lite_reads1.sai
 ibwa aln hs37lite.fa -b2 allreads.bam > hs37lite_reads2.sai
 </pre>
