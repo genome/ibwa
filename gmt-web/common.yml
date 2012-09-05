@@ -1,6 +1,6 @@
 ---
 layout: sub
-menu: 
+menu:
     - text: Overview
       href: index.html
     - text: Documentation
@@ -17,5 +17,5 @@ module_details:
     debian_pkg_name: ibwa
 
 include_suffix: true
-download_link: install.html 
+download_link: install.html
 github_url: https://github.com/genome/ibwa
