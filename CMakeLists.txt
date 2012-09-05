@@ -14,15 +14,14 @@ cmake_minimum_required(VERSION 2.6)
 project(bwa)
 
 # Versioning ###############################################################
-set(UPSTREAM_VERSION 0.5.9)
 set(INTERNAL_VERSION_FULL 0.5.0~alpha0)
 set(INTERNAL_VERSION_SHORT 0.5)
-set(FULL_VERSION "${UPSTREAM_VERSION}-${INTERNAL_VERSION_FULL}")
+set(FULL_VERSION "${INTERNAL_VERSION_FULL}")
 configure_file(version.h.in version.h)
 include_directories(${PROJECT_BINARY_DIR})
 
 # use these to created a versioned copy of the bwa binary, e.g., bwa-0.5.9
-set(EXE_VERSION_SUFFIX "-${UPSTREAM_VERSION}-${INTERNAL_VERSION_SHORT}")
+set(EXE_VERSION_SUFFIX "-${INTERNAL_VERSION_SHORT}")
 set(BWA_EXECUTABLE_NAME ibwa${EXE_VERSION_SUFFIX})
 
 # Compiler options and libraries ###########################################
@@ -108,7 +107,7 @@ if(${CMAKE_SIZEOF_VOID_P} MATCHES 8)
 endif ()
 
 set(CPACK_PACKAGE_VERSION "${INTERNAL_VERSION_FULL}")
-set(CPACK_PACKAGE_NAME "ibwa-${UPSTREAM_VERSION}-${INTERNAL_VERSION_SHORT}")
+set(CPACK_PACKAGE_NAME "ibwa-${INTERNAL_VERSION_SHORT}")
 set(CPACK_PACKAGE_FILE_NAME "${CPACK_PACKAGE_NAME}_${INTERNAL_VERSION_FULL}_${DEB_ARCH}")
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "A sequence aligner based on the BWT.")
 set(CPACK_PACKAGE_VENDOR "TGI")
