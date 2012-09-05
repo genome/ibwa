@@ -9,11 +9,11 @@ menu:
       href: install.html
 
 module_details:
-    name: ibwa
+    name: iBWA
     icon: res/images/icon_48.png
     icon_16: res/images/icon_16.png
     exe_name: ibwa
-    gmt_pkg_name: iBWA
+    gmt_pkg_name: ibwa
     debian_pkg_name: ibwa
 
 include_suffix: true
