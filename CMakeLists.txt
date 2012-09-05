@@ -98,12 +98,15 @@ install(FILES bwa.1 DESTINATION share/man/man1/
 
 # Packaging ################################################################
 set(ARCH "i686")
+set(DEB_ARCH "i686")
 if(${CMAKE_SIZEOF_VOID_P} MATCHES 8)
     set(ARCH "x86_64")
+    set(DEB_ARCH "amd64")
 endif ()
 
 set(CPACK_PACKAGE_VERSION "${INTERNAL_VERSION_FULL}")
 set(CPACK_PACKAGE_NAME "ibwa-${UPSTREAM_VERSION}-${INTERNAL_VERSION_SHORT}")
+set(CPACK_PACKAGE_FILE_NAME "${CPACK_PACKAGE_NAME}_${INTERNAL_VERSION_FULL}_${DEB_ARCH}")
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "A sequence aligner based on the BWT.")
 set(CPACK_PACKAGE_VENDOR "TGI")
 #set(CPACK_PACKAGE_VERSION ${FULL_VERSION})
