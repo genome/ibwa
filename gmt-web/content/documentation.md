@@ -15,15 +15,13 @@ ibwa sampe -R primary_ref.fa primary_ref_r1.sai primary_ref_r2.sai
     alt_ref.fa alt_ref_r1.sai alt_ref_r2.sai > output.sam</pre>
 
 ## NOTES
-iBWA is a a fork of [Heng Li's BWA aligner](http://bio-bwa.sourceforge.net), with support for iteratively adding alternate haplotypes, patches, and variant hypotheses. For information about other BWA features, please see the [latest BWA documentation](http://bio-bwa.sourceforge.net/bwa.shtml).
+iBWA is fork of [Heng Li's BWA aligner][bwa] with support for iteratively adding alternate haplotypes, reference patches, and variant hypotheses
+For additional information about BWA please see Heng Li's [BWA @ SourceForge][bwa] or [BWA's manual page][bwaman].
 
 ## COMMANDS AND OPTIONS
-<dl>
-<dt markdown='1'>`sampe -R`</dt>
-<dd>enable compound sequence remapping</dd>
-</dl>
 
-See the latest [BWA documentation](http://bio-bwa.sourceforge.net/bwa.shtml) for a description of other commands and options. 
+iBWA adds the `-R` option to `sampe` to enable compound sequence remapping. Since iBWA is based on BWA v0.5.9 it also supports those commands and options found in that version of BWA.
+See [BWA's manual page][bwaman] or run the command for additional details.
 
 ## FILE FORMATS
 
