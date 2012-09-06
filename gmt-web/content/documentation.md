@@ -114,3 +114,5 @@ ibwa sampe -R
      > aln.sam
 </pre>
 
+[bwa]: http://bio-bwa.sourceforge.net
+[bwaman]: http://bio-bwa.sourceforge.net/bwa.shtml
