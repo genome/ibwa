@@ -21,7 +21,7 @@ configure_file(version.h.in version.h)
 include_directories(${PROJECT_BINARY_DIR})
 
 # use these to created a versioned copy of the bwa binary, e.g., bwa-0.5.9
-set(EXE_VERSION_SUFFIX "-${INTERNAL_VERSION_SHORT}")
+set(EXE_VERSION_SUFFIX "${INTERNAL_VERSION_SHORT}")
 set(BWA_EXECUTABLE_NAME ibwa${EXE_VERSION_SUFFIX})
 
 # Compiler options and libraries ###########################################
