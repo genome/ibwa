@@ -1,5 +1,5 @@
 ## NAME
-iBWA - Iterative Burrows-Wheeler Alignment Tool
+iBWA - Iterative Burrows-Wheeler Alignment
 
 ## SYNOPSIS
 <pre class='terminal'>ibwa index -a bwtsw primary_ref.fa
