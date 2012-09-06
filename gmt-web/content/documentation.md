@@ -113,7 +113,7 @@ For example:
 
 <pre class='terminal'>
 ibwa sampe -R \
-     primary_ref.fa primary_ref_reads1.sai primary_ref_reads2.sai reads1.fq reads2.fq \
+     pri_ref.fa pri_ref_reads1.sai pri_ref_reads2.sai reads1.fq reads2.fq \
      alt_ref1.fa alt_ref1_reads1.sai alt_ref1_reads2.sai \
      alt_ref2.fa alt_ref2_reads1.sai alt_ref2_reads2.sai \
      ...
