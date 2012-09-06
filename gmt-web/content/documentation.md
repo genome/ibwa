@@ -62,7 +62,7 @@ ibwa index -a is small_ref.fa
 
 This will create index files next to the corresponding reference FASTAs.
 
-There are two algorithms available. Specify `-a bwtsw` to use BWT-SW, and use `-a is` to use the IS algorithm. If the reference fasta is less than 11,000,000 bytes, use the IS algorithm.
+There are two algorithms available. Specify `-a bwtsw` to use BWT-SW, and use `-a is` to use the IS algorithm. If the reference FASTA is less than 11,000,000 bytes, use the IS algorithm.
 
 From the [BWA documentation](http://bio-bwa.sourceforge.net/bwa.shtml#3):
 <dl>
