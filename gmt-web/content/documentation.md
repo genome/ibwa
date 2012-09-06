@@ -1,7 +1,9 @@
 ## NAME
+
 iBWA - Iterative Burrows-Wheeler Alignment
 
 ## SYNOPSIS
+
 <pre class='terminal'>ibwa index -a bwtsw primary_ref.fa
 ibwa index -a bwtsw alt_ref.fa
 
@@ -15,7 +17,9 @@ ibwa sampe -R primary_ref.fa primary_ref_r1.sai primary_ref_r2.sai \
     alt_ref.fa alt_ref_r1.sai alt_ref_r2.sai > output.sam</pre>
 
 ## NOTES
+
 iBWA is a fork of [Heng Li's BWA aligner][bwa] with support for iteratively adding alternate haplotypes, reference patches, and variant hypotheses.
+
 For additional information about BWA please see Heng Li's [BWA @ SourceForge][bwa] or [BWA's manual page][bwaman].
 
 ## COMMANDS AND OPTIONS
