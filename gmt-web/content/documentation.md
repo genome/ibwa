@@ -56,7 +56,7 @@ ibwa index -a bwtsw hs37lite.fa
 ibwa index -a bwtsw hs37patch9.fa
 ibwa index -a bwtsw hs37dbsnp135cutoff5.fa
 
-&#35; If small_ref.fa is <= 10 MB use `-a is`:
+&#35; If small_ref.fa is &lt;= 10 MB use `-a is`:
 ibwa index -a is small_ref.fa
 </pre>
 
