@@ -14,13 +14,16 @@ use Parse::RecDescent;
 use Try::Tiny;
 
 croak "Provide source directory" unless ($ARGV[0] and -d $ARGV[0]);
-croak "Provide destination directory" unless ($ARGV[1] and -d $ARGV[1]);
+croak "Provide destination directory" unless ($ARGV[1]);
+croak "Destination directory exists" if (-e $ARGV[1]);
 
 execute($ARGV[0], $ARGV[1], "GRCh37");
 
 sub execute {
     my ($root, $destination, $major) = @_;
-    
+
+    $destination = getcwd() . '/' . $destination unless ($destination =~ /^(?:\/|~)/); # TODO fix this
+
     print "\nThis script requires several gigabytes of free space in /tmp.\n";
     print "Also, please ensure that the destination directory $destination is empty before continuing.\n";
     print "Any files in this directory may be overwritten or modified.\n";
@@ -34,7 +37,7 @@ sub execute {
     $store->{patches}   = {};
     $store->{primary}   = {};
     $store->{flank}     = ($ARGV[2] and $ARGV[2] =~ /^\d+$/) ? $ARGV[2] : 150;
-    $store->{destdir}   = getcwd() . '/' . $destination;
+    $store->{destdir}   = 
     $store->{tempdir}   = File::Temp->newdir();
 
     say "Destination: " . $store->{destdir};
