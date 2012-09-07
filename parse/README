@@ -1,0 +1,22 @@
+Examples for preparing .remap files.
+
+prepare-grch37.pl is a work-in-progress script that attempts to create remap files from the GRCh37 reference.
+
+Arguments are: source directory, destination directory, and (optional) flank (default is 150)
+
+It expects a source directory listing like:
+
+GRCh37/
+GRCh37.p1/
+GRCh37.p2/
+... etc
+
+If it doesn't find a directory like this, it should fail verbosely. However, if the script merley prints 'Done' without any status messages, it most likely could not understand the layout of the source directory.
+
+The destination directory should be empty. Behavior for non-empty destination directories is undefined.
+
+Please note that this script will use several gigabytes in /tmp.
+
+This script has difficulty working with patches to alts and unlocalized scaffolds in the primary assembly, and will warn the user with errors such as 'Parse error: Did not find accession 'GL000192.1' in any fasta files' and 'Could not find placement for patch 'JH636052.1-GL000192.1'.
+
+Although this script tries to catch any errors it encounters, it has not been thoroughly tested.
