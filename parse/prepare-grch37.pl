@@ -37,7 +37,7 @@ sub execute {
     $store->{patches}   = {};
     $store->{primary}   = {};
     $store->{flank}     = ($ARGV[2] and $ARGV[2] =~ /^\d+$/) ? $ARGV[2] : 150;
-    $store->{destdir}   = 
+    $store->{destdir}   = $destination;
     $store->{tempdir}   = File::Temp->newdir();
 
     say "Destination: " . $store->{destdir};
