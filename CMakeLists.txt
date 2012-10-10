@@ -42,7 +42,7 @@ if (CMAKE_COMPILER_IS_GNUCC)
 endif ()
 
 if (CMAKE_COMPILER_IS_GNUCXX)
-    set(CMAKE_CXX_FLAGS "-Wall -std=c++0x")
+    set(CMAKE_CXX_FLAGS "-Wall")
 endif ()
 
 find_package(ZLIB REQUIRED)

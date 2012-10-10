@@ -3,7 +3,7 @@
 #include "bwase.h"
 
 #include <cstddef>
-#include <cstdint>
+#include <stdint.h>
 #include <limits>
 #include <map>
 
@@ -65,6 +65,7 @@ void compute_seq_coords_and_counts(
 
     out_arr->n = 0;
     for (int j = 0; j < 2; ++j) {
+        typedef map<uint64_t, alignment_t*> P2SMapType;
         map<uint64_t, alignment_t*> pos2score;
         int min_score = numeric_limits<int>::max();
         for (unsigned k = 0; k < aln[j].n; ++k) {
@@ -93,7 +94,7 @@ void compute_seq_coords_and_counts(
                     alnpos.idx_and_end = k<<1 | j;
                     kv_push(position_t, *out_arr, alnpos);
 
-                    auto inserted = pos2score.insert(make_pair(alnpos.remapped_pos, ar));
+                    pair<P2SMapType::iterator, bool> inserted = pos2score.insert(make_pair(alnpos.remapped_pos, ar));
                     if (!inserted.second) {
                         if (ar->aln.score < inserted.first->second->aln.score)
                             inserted.first->second = ar;
@@ -116,7 +117,7 @@ void compute_seq_coords_and_counts(
                     
                     alnpos.idx_and_end = k<<1 | j;
                     kv_push(position_t, *out_arr, alnpos);
-                    auto inserted = pos2score.insert(make_pair(alnpos.remapped_pos, ar));
+                    pair<P2SMapType::iterator, bool> inserted = pos2score.insert(make_pair(alnpos.remapped_pos, ar));
                     if (!inserted.second) {
                         if (ar->aln.score < inserted.first->second->aln.score)
                             inserted.first->second = ar;
@@ -127,7 +128,7 @@ void compute_seq_coords_and_counts(
 
         size_t totalReadCounts[2] = {0};
         size_t primaryReadCounts[2] = {0};
-        for (auto i = pos2score.begin(); i != pos2score.end(); ++i) {
+        for (P2SMapType::const_iterator i = pos2score.begin(); i != pos2score.end(); ++i) {
             int idx = i->second->aln.score == min_score ? 0 : 1;
             ++totalReadCounts[idx];
             if (i->second->dbidx == 0)
