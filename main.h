@@ -5,7 +5,8 @@
 extern "C" {
 #endif
 
-	int bwa_remap(int argc, char *argv[]);
+    void bwa_print_sam_PG();
+
 	int bwa_fa2pac(int argc, char *argv[]);
 	int bwa_pac_rev(int argc, char *argv[]);
 	int bwa_pac2cspac(int argc, char *argv[]);
