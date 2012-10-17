@@ -73,7 +73,7 @@ set(LIB_SOURCES
     translate_cigar.cpp translate_cigar.h
     filter_alignments.cpp filter_alignments.h
 )
-set(MAIN_SOURCES main.c main.h)
+set(MAIN_SOURCES main.cpp main.h)
 
 add_library(bwa ${LIB_SOURCES})
 target_link_libraries(bwa ${MATH_LIBRARY} ${ZLIB_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
