@@ -37,7 +37,8 @@ For instance, if a user has a reference FASTA named `primary_ref.fa`, and has a 
 The remap file format is as follows:
 
 <pre class='terminal'>&gt;seqid-chrom|start|stop
-cigar</pre>
+cigar
+</pre>
 
 * `seqid` is the sequence ID from alternates.fa
 * `chrom`, `start`, and `stop` explains the region of the primary reference where the alternate sequence is going to remap (note that this can be much longer than the alternate sequence in the case of sequences with long deletions from the reference)
