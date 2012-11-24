@@ -46,16 +46,26 @@ cigar
 
 The sequence ids in the `.fa` and the `.fa.remap` files must match and must be in the same order, and `seqid` should not contain dashes.
 
-# DOWNLOADING REFSEQS
+# DOWNLOADING PRE-MADE REFERENCE SEQUENCES
 
-The Genome Institute hosts a copy of the "lite" build 37 (hg19) human reference, as well as pre-made files for the latest patches from the Genome Reference Consortium, and files for dbSNP where the variants have a global minor allele frequencey (GMAF) of at least 5%.
+All URLs below are accessible via http and also ftp.
 
-These can all be downloaded and uncompressed via http or ftp from genome.wustl.edu:/pub/software/ibwa/:
-
+The Genome Institute hosts a copy of the "lite" build 37 (hg19) human reference:
 <pre class='terminal'>
 wget http://genome.wustl.edu/pub/software/ibwa/hs37lite.fa.gz
+gunzip *.gz
+</pre>
+
+TGI also hosts the latest patches from The Genome Reference Consortium pre-built to work with iBWA.  This fasta includes all alternate haplotypes as of the current patch level, in addition to all "fix patches" correcting errors in the reference.
+<pre class='terminal'>
 wget http://genome.wustl.edu/pub/software/ibwa/hs37patch10.fa.gz
 wget http://genome.wustl.edu/pub/software/ibwa/hs37patch10.fa.remap.gz
+gunzip *.gz
+</pre>
+
+TGI also hosts an extension the reference made from dbSNP variants where the variants have a global minor allele frequencey (GMAF) of at least 5%.
+
+<pre class='terminal'>
 wget http://genome.wustl.edu/pub/software/ibwa/37dbsnp137cutoff5.fa.gz
 wget http://genome.wustl.edu/pub/software/ibwa/37dbsnp137cutoff5.fa.remap.gz
 gunzip *.gz
