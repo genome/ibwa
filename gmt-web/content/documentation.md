@@ -14,7 +14,8 @@ ibwa aln -b2 alt_ref.fa reads.bam > alt_ref_r2.sai
 
 ibwa sampe -R primary_ref.fa primary_ref_r1.sai primary_ref_r2.sai \
     reads.bam reads.bam \
-    alt_ref.fa alt_ref_r1.sai alt_ref_r2.sai > output.sam</pre>
+    alt_ref.fa alt_ref_r1.sai alt_ref_r2.sai > output.sam
+</pre>
 
 ## NOTES
 
