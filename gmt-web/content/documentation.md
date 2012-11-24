@@ -20,7 +20,7 @@ ibwa sampe -R primary_ref.fa primary_ref_r1.sai primary_ref_r2.sai \
 
 iBWA is a fork of [Heng Li's BWA aligner][bwa] with support for iteratively adding alternate haplotypes, reference patches, and variant hypotheses.
 
-For additional information about BWA please see Heng Li's [BWA @ SourceForge][bwa] or [BWA's manual page][bwaman].
+For additional information about the original BWA please see Heng Li's [BWA @ SourceForge][bwa] or [BWA's manual page][bwaman].
 
 ## COMMANDS AND OPTIONS
 
@@ -44,6 +44,22 @@ cigar</pre>
 
 The sequence ids in the `.fa` and the `.fa.remap` files must match and must be in the same order, and `seqid` should not contain dashes.
 
+# DOWNLOADING REFSEQS
+
+The Genome Institute hosts a copy of the "lite" build 37 (hg19) human reference, as well as pre-made files for the latest patches from the Genome Reference Consortium, and files for dbSNP where the variants have a global minor allele frequencey (GMAF) of at least 5%.
+
+These can all be downloaded and uncompressed via http or ftp from genome.wustl.edu:/pub/software/ibwa/:
+
+<pre class='terminal'>
+wget http://genome.wustl.edu/pub/software/ibwa/hs37lite.fa.gz
+wget http://genome.wustl.edu/pub/software/ibwa/hs37patch10.fa.gz
+wget http://genome.wustl.edu/pub/software/ibwa/hs37patch10.fa.remap.gz
+wget http://genome.wustl.edu/pub/software/ibwa/37dbsnp137cutoff5.fa.gz
+wget http://genome.wustl.edu/pub/software/ibwa/37dbsnp137cutoff5.fa.remap.gz
+gunzip *.gz
+</pre>
+
+
 # EXAMPLE PIPELINE
 
 ---
@@ -53,7 +69,7 @@ Create an aligner index for each reference fasta:
 
 <pre class='terminal'>
 ibwa index -a bwtsw hs37lite.fa
-ibwa index -a bwtsw hs37patch9.fa
+ibwa index -a bwtsw hs37patch10.fa
 ibwa index -a bwtsw hs37dbsnp135cutoff5.fa
 
 &#35; If small_ref.fa is &lt;= 10 MB use `-a is`:
@@ -79,8 +95,8 @@ Align each input file (FASTQ or BAM) to each reference (FASTA):
 ibwa aln hs37lite.fa reads1.fq > hs37lite_reads1.sai
 ibwa aln hs37lite.fa reads2.fq > hs37lite_reads2.sai
 
-ibwa aln hs37patch9.fa reads1.fq > hs37patch9_reads1.sai
-ibwa aln hs37patch9.fa reads2.fq > hs37patch9_reads2.sai
+ibwa aln hs37patch10.fa reads1.fq > hs37patch10_reads1.sai
+ibwa aln hs37patch10.fa reads2.fq > hs37patch10_reads2.sai
 
 ibwa aln hs37dbsnp135cutoff5.fa reads1.fq > hs37dbsnp135cutoff5_reads1.sai
 ibwa aln hs37dbsnp135cutoff5.fa reads2.fq > hs37dbsnp135cutoff5_reads2.sai
@@ -101,7 +117,7 @@ Run `samse` (for single-ended data) or `sampe` (for paired-end data) to generate
 <pre class='terminal'>
 ibwa sampe -R \
     hs37lite.fa hs37lite_reads1.sai hs37lite_reads2.sai reads1.fq reads2.fq \
-    hs37patch9.fa hs37patch9_reads1.sai hs37patch9_reads2.sai \
+    hs37patch9.fa hs37patch10_reads1.sai hs37patch10_reads2.sai \
     hs37dbsnp135cutoff5.fa hs37dbsnp135cutoff5_reads1.sai \
     hs37dbsnp135cutoff5_reads2.sai \
     > aln.sam
