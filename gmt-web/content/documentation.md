@@ -153,17 +153,19 @@ ibwa sampe -R \
 
 All alignments to contigs in references with a .remap file will be converted into primary reference space.  This is a translation of the alignment position and cigar from the alternate, not a re-alignment.  The original refseq name, position and cigar are preserved in a ZR tag.
 
-The resulting SAM/BAM file can be used with standard variant detectors.  When reads hit an alternate sequence or a patch, the "variants" which would describe that alternate or patch will appear with a stronger signal in the output.  New variants in the vicinity of the alternate are more likely to be detectable.  False positives commonly occurring around complex variations will be reduced or removed.
+The resulting SAM/BAM file can be used with standard variant detectors, and does not necessarily require futher special processing.  When reads hit an alternate sequence or a patch, the "variants" which would describe that alternate or patch will appear with a stronger signal in the output.  New variants in the vicinity of the alternate are more likely to be detectable.  False positives commonly occurring around complex variations will be reduced or removed.
 
-Down-stream analysis and annotation will likely want to remove variant calls which are related to fix-patches in the reference.  The normalization effect created by the alternate sequence will help make these more detectable, preventing things like the shortening of a repeat from appearing in inconsistent ways in the read alignments.
+There are two things which may be useful to down-stream analysis:
 
-Variants aligning to alternate haplotypes can be interpreted at the individual variant level or, at the whole-haplotype level.  The later is detecting variations by counting occurrences of the ZR tag for a given alternate, versus other alternates or versus the primary reference.  The former is simply using standard variant detection tools, and noting where variants detected match priors given to iBWA. 
+Down-stream analysis and annotation will possibly want to remove variant calls which are related to fix-patches in the reference.  Removing these variants would be of benefit even with regular BWA on the "lite" reference, but those variants would be more difficult to even detect.  The normalization effect created by the alternate sequence will help make these more detectable, preventing things like the shortening of a repeat from appearing in inconsistent ways in the read alignments.
 
-To identify the haplotypes present in the genome extracting the ZR tag and counting occurrences provides an initial perspective on which haplotypes are present.  It is possible that re-aligning against a narrower list of haplotypes (say selecting no more than two in any region of a diploid genome) after examining initial alignments could produce an even clearer picture of the genome.
+Variants aligning to alternate haplotypes can be interpreted at the whole-haplotype level instead of on a per-variant basis.  The later is detecting variations by counting occurrences of the ZR tag for a given alternate, versus other alternates or versus the primary reference.   A simple execution of samtools view, and piping through grep, awk, sort and uniq will summarize the known haplotypes present in the sample.  Counting occurrences provides an initial perspective on which haplotypes are present.  It is possible that re-aligning against a narrower list of haplotypes (say selecting no more than two in any region of a diploid genome) after examining initial alignments could produce an even clearer picture of the genome.
 
 ## ISSUES
 
-The BWA alignment algorithm intentionally scores alignments poorly where certainty of position in the genome is ambiguous.  The iBWA modification mitigates this loss of confidence explicitly where competing alignments re-map to the exact same location.  In cases where the cigar string associated with a patch lacks nuance, iBWA will not be able to protect the alignment from a scoring discount.  Similarly, the re-location of a piece of the genome may only receive clear scoring improvements where paired-end data is able to recognize that the relocated region is in play versus the original.
+The BWA alignment algorithm intentionally scores alignments poorly where certainty of position in the genome is ambiguous.  The iBWA modification mitigates this loss of confidence explicitly where competing alignments re-map to the exact same location.  
+
+In cases where the cigar string associated with a patch lacks nuance, iBWA will not be able to protect the alignment from a scoring discount.  Similarly, the re-location of a piece of the genome may only receive clear scoring improvements where paired-end data is able to recognize that the relocated region is in play versus the original.
 
 [bwa]: http://bio-bwa.sourceforge.net
 [bwaman]: http://bio-bwa.sourceforge.net/bwa.shtml
