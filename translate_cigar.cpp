@@ -265,7 +265,7 @@ struct CigarTranslator {
     }
 
     void find_start_pos() {
-        while (cpos < start_pos && !eos()) {
+        while ((cpos < start_pos || (seq_len == 0 || seq_op == 'N' || seq_op == 'D')) && !eos()) {
             if (seq_len == 0) seq_advance();
             int dist = start_pos - cpos;
             switch (seq_op) {
@@ -292,6 +292,7 @@ struct CigarTranslator {
                     break;
             }
         }
+
         if (cpos < start_pos) {
             stringstream ss;
             ss << "Failed to seek to position " << start_pos << " in cigar string '" << seq_cigar << "'";
