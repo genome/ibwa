@@ -51,12 +51,14 @@ The sequence ids in the `.fa` and the `.fa.remap` files must match and must be i
 All URLs below are accessible via http and also ftp.
 
 The Genome Institute hosts a copy of the "lite" build 37 (hg19) human reference:
+
 <pre class='terminal'>
 wget http://genome.wustl.edu/pub/software/ibwa/hs37lite.fa.gz
 gunzip *.gz
 </pre>
 
 TGI also hosts the latest patches from The Genome Reference Consortium pre-built to work with iBWA.  This fasta includes all alternate haplotypes as of the current patch level, in addition to all "fix patches" correcting errors in the reference.
+
 <pre class='terminal'>
 wget http://genome.wustl.edu/pub/software/ibwa/hs37patch10.fa.gz
 wget http://genome.wustl.edu/pub/software/ibwa/hs37patch10.fa.remap.gz
